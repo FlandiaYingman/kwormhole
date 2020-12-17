@@ -23,9 +23,17 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.junit.jupiter:junit-jupiter:5.4.2")
+
+    runtimeOnly("mysql:mysql-connector-java")
+
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+    implementation("io.github.microutils:kotlin-logging:2.0.3")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
