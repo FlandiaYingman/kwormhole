@@ -14,7 +14,7 @@ import io.ktor.http.content.OutgoingContent
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import top.anagke.kwormhole.model.FileMetadata
+import top.anagke.kwormhole.store.FileMetadata
 import top.anagke.kwormhole.util.B
 import top.anagke.kwormhole.util.MiB
 import top.anagke.kwormhole.util.hash

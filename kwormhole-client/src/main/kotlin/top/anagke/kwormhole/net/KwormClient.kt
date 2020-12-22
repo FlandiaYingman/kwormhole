@@ -6,7 +6,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.put
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import top.anagke.kwormhole.model.FileMetadata
+import top.anagke.kwormhole.store.FileMetadata
 import top.anagke.kwormhole.util.MiB
 import top.anagke.kwormhole.util.contentRange
 import top.anagke.kwormhole.util.suspendForEachBlock

@@ -1,4 +1,4 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.store
 
 data class FileMetadata(
     val hash: Long,
