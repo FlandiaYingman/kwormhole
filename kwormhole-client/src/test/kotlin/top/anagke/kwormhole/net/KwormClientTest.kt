@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test
 import top.anagke.kwormhole.model.FileMetadata
 import top.anagke.kwormhole.util.B
 import top.anagke.kwormhole.util.MiB
+import top.anagke.kwormhole.util.hash
 import top.anagke.kwormhole.util.parseRange
 import java.io.File
 import kotlin.random.Random
@@ -29,11 +30,13 @@ internal class KwormClientTest {
 
     @Test
     fun uploadFile() {
-        val metadataList = List(RANDOM_TIMES) { FileMetadata(Random.nextLong()) }.run { this + this }
         val contentList = listOf(
             List(RANDOM_TIMES) { Random.nextBytes(16.B) },
             List(RANDOM_TIMES) { Random.nextBytes(16.MiB) }
         ).flatten()
+        val metadataList = List(RANDOM_TIMES * 2) {
+            FileMetadata(contentList[it].hash(), Random.nextLong())
+        }
 
         var count = 0
         var prevIsContent = false
