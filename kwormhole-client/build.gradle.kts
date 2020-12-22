@@ -30,6 +30,12 @@ dependencies {
     implementation("io.ktor:ktor-client-gson:1.4.3")
     implementation("io.ktor:ktor-client-mock:1.4.3")
 
+    implementation("org.jetbrains.exposed:exposed-core:0.28.1")
+    implementation("org.jetbrains.exposed:exposed-dao:0.28.1")
+    runtimeOnly("org.jetbrains.exposed:exposed-jdbc:0.28.1")
+    implementation("org.xerial:sqlite-jdbc:3.34.0")
+    implementation("org.lz4:lz4-java:1.7.1")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
 }
 
