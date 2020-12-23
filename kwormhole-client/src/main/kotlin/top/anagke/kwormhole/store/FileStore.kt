@@ -86,7 +86,7 @@ class FileStore(storePath: File) {
         }
     }
 
-    fun updateExisting(filePath: String) {
+    fun updateExisting(filePath: String): KwormFile {
         val actualPath = resolve(filePath)
         val kwormFile = KwormFile(filePath, FileMetadata(actualPath.hash(), Instant.now().toEpochMilli()))
         transaction(database) {
@@ -96,6 +96,7 @@ class FileStore(storePath: File) {
                 it[updateTime] = kwormFile.updateTime
             }
         }
+        return kwormFile
     }
 
 
