@@ -12,6 +12,7 @@ import top.anagke.kwormhole.util.use
 import java.io.File
 import java.io.RandomAccessFile
 import kotlin.math.max
+import kotlin.sequences.Sequence
 
 class FileStore(val storePath: File) {
 
@@ -36,6 +37,18 @@ class FileStore(val storePath: File) {
             KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
         }
     }
+
+    fun findAll(kwormPaths: Sequence<String>): Sequence<KwormFile?> {
+        return transaction(database) {
+            kwormPaths.toList().map {
+                KwormFileTable.select { path eq it }.singleOrNull()
+            }
+        }.asSequence().map {
+            val single = it ?: return@map null
+            KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
+        }
+    }
+
 
     fun store(bytes: ByteArray, kwormFile: KwormFile) {
         resolveTemp(kwormFile.path).use { temp ->
@@ -93,6 +106,22 @@ class FileStore(val storePath: File) {
         }
     }
 
+    fun storeAllExisting(kwormPaths: Sequence<String>) {
+        transaction(database) {
+            for (kwormPath in kwormPaths) {
+                val actualPath = resolve(kwormPath)
+                val actualHash = actualPath.hash()
+                val actualUpdateTime = utcTimeMillis
+                KwormFileTable.insert {
+                    it[path] = kwormPath
+                    it[hash] = actualHash
+                    it[updateTime] = actualUpdateTime
+                }
+            }
+        }
+    }
+
+
     fun update(kwormPath: KwormFile) {
         val actualHash = resolve(kwormPath.path).hash()
         if (kwormPath.hash != actualHash) {
@@ -100,6 +129,20 @@ class FileStore(val storePath: File) {
                 KwormFileTable.update({ path eq kwormPath.path }) {
                     it[hash] = actualHash
                     it[updateTime] = utcTimeMillis
+                }
+            }
+        }
+    }
+
+    fun updateAll(kwormPaths: Sequence<KwormFile>) {
+        transaction(database) {
+            kwormPaths.forEach { kwormFile ->
+                val actualHash = resolve(kwormFile.path).hash()
+                if (kwormFile.hash != actualHash) {
+                    KwormFileTable.update({ path eq kwormFile.path }) {
+                        it[hash] = actualHash
+                        it[updateTime] = utcTimeMillis
+                    }
                 }
             }
         }
