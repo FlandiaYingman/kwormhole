@@ -2,6 +2,7 @@ package top.anagke.kwormhole.store
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import top.anagke.kwormhole.store.KwormFile.Companion.utcTimeMillis
 import top.anagke.kwormhole.store.KwormFileTable.hash
 import top.anagke.kwormhole.store.KwormFileTable.path
 import top.anagke.kwormhole.store.KwormFileTable.updateTime
@@ -10,10 +11,9 @@ import top.anagke.kwormhole.util.requireHashEquals
 import top.anagke.kwormhole.util.use
 import java.io.File
 import java.io.RandomAccessFile
-import java.time.Instant
 import kotlin.math.max
 
-class FileStore(storePath: File) {
+class FileStore(val storePath: File) {
 
     private val databasePath = storePath.resolve(".kwormhole.db")
 
@@ -30,15 +30,9 @@ class FileStore(storePath: File) {
     }
 
 
-    fun exists(findPath: String): Boolean {
+    fun find(kwormPath: String): KwormFile? {
         return transaction(database) {
-            KwormFileTable.select { path eq findPath }.any()
-        }
-    }
-
-    fun find(findPath: String): KwormFile {
-        return transaction(database) {
-            val single = KwormFileTable.select { path eq findPath }.single()
+            val single = KwormFileTable.select { path eq kwormPath }.singleOrNull() ?: return@transaction null
             KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
         }
     }
@@ -60,8 +54,8 @@ class FileStore(storePath: File) {
         }
     }
 
-    fun storePart(bytes: ByteArray, range: LongRange, path: String) {
-        val temp = resolveTemp(path)
+    fun storePart(bytes: ByteArray, range: LongRange, kwormPath: String) {
+        val temp = resolveTemp(kwormPath)
         temp.parentFile.mkdirs()
         temp.createNewFile()
         RandomAccessFile(temp, "rw").use {
@@ -86,17 +80,29 @@ class FileStore(storePath: File) {
         }
     }
 
-    fun updateExisting(filePath: String): KwormFile {
-        val actualPath = resolve(filePath)
-        val kwormFile = KwormFile(filePath, FileMetadata(actualPath.hash(), Instant.now().toEpochMilli()))
+    fun storeExisting(kwormPath: String) {
+        val actualPath = resolve(kwormPath)
+        val actualHash = actualPath.hash()
+        val actualUpdateTime = utcTimeMillis
         transaction(database) {
-            KwormFileTable.replace {
-                it[path] = kwormFile.path
-                it[hash] = kwormFile.hash
-                it[updateTime] = kwormFile.updateTime
+            KwormFileTable.insert {
+                it[path] = kwormPath
+                it[hash] = actualHash
+                it[updateTime] = actualUpdateTime
             }
         }
-        return kwormFile
+    }
+
+    fun update(kwormPath: KwormFile) {
+        val actualHash = resolve(kwormPath.path).hash()
+        if (kwormPath.hash != actualHash) {
+            transaction(database) {
+                KwormFileTable.update({ path eq kwormPath.path }) {
+                    it[hash] = actualHash
+                    it[updateTime] = utcTimeMillis
+                }
+            }
+        }
     }
 
 
