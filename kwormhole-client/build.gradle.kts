@@ -24,11 +24,11 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging:2.0.3")
 
     implementation("no.tornado:tornadofx:1.7.20")
-    implementation("io.ktor:ktor-client-core:1.4.3")
-    implementation("io.ktor:ktor-client-cio:1.4.3")
-    implementation("io.ktor:ktor-client-json:1.4.3")
-    implementation("io.ktor:ktor-client-gson:1.4.3")
-    implementation("io.ktor:ktor-client-mock:1.4.3")
+    implementation("io.ktor:ktor-client-core:1.5.0")
+    implementation("io.ktor:ktor-client-cio:1.5.0")
+    implementation("io.ktor:ktor-client-json:1.5.0")
+    implementation("io.ktor:ktor-client-gson:1.5.0")
+    implementation("io.ktor:ktor-client-mock:1.5.0")
 
     implementation("org.jetbrains.exposed:exposed-core:0.28.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.28.1")
