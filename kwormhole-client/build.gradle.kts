@@ -29,6 +29,9 @@ dependencies {
     implementation("io.ktor:ktor-client-json:1.5.0")
     implementation("io.ktor:ktor-client-gson:1.5.0")
     implementation("io.ktor:ktor-client-mock:1.5.0")
+    implementation("io.ktor:ktor-server-core:1.5.0")
+    implementation("io.ktor:ktor-server-cio:1.5.0")
+    implementation("io.ktor:ktor-gson:1.5.0")
 
     implementation("org.jetbrains.exposed:exposed-core:0.28.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.28.1")
