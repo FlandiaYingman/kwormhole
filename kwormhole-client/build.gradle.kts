@@ -36,6 +36,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-core:0.28.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.28.1")
     runtimeOnly("org.jetbrains.exposed:exposed-jdbc:0.28.1")
+    implementation("com.zaxxer:HikariCP:3.4.5")
     implementation("org.xerial:sqlite-jdbc:3.34.0")
     implementation("org.lz4:lz4-java:1.7.1")
 
