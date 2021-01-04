@@ -41,6 +41,15 @@ class FileStore(val storePath: File) {
     }
 
 
+    fun list(): Sequence<KwormFile> {
+        return transaction(Database.connect(databaseCP)) {
+            KwormFileTable.selectAll().map {
+                KwormFile(it[path], FileMetadata(it[hash], it[updateTime]))
+            }.asSequence()
+        }
+    }
+
+
     fun find(kwormPath: String): KwormFile? {
         return transaction(Database.connect(databaseCP)) {
             val single = KwormFileTable.select { path eq kwormPath }.singleOrNull() ?: return@transaction null
