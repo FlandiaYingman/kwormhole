@@ -1,9 +1,12 @@
 package top.anagke.kwormhole.store
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import top.anagke.kwormhole.store.KwormFile.Companion.utcTimeMillis
@@ -23,26 +26,30 @@ class FileStore(val storePath: File) {
 
     private val contentPath = storePath.resolve(".")
 
-
-    private val database = Database.connect("jdbc:sqlite:${databasePath}")
+    private val databaseCP = kotlin.run {
+        val config = HikariConfig()
+        config.jdbcUrl = "jdbc:sqlite:${databasePath}"
+        config.driverClassName = "org.sqlite.JDBC"
+        HikariDataSource(config)
+    }
 
     init {
         storePath.mkdirs()
-        transaction(database) {
+        transaction(Database.connect(databaseCP)) {
             SchemaUtils.create(KwormFileTable)
         }
     }
 
 
     fun find(kwormPath: String): KwormFile? {
-        return transaction(database) {
+        return transaction(Database.connect(databaseCP)) {
             val single = KwormFileTable.select { path eq kwormPath }.singleOrNull() ?: return@transaction null
             KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
         }
     }
 
     fun findAll(kwormPaths: Sequence<String>): Sequence<KwormFile?> {
-        return transaction(database) {
+        return transaction(Database.connect(databaseCP)) {
             kwormPaths.toList().map {
                 KwormFileTable.select { path eq it }.singleOrNull()
             }
@@ -60,7 +67,7 @@ class FileStore(val storePath: File) {
             temp.writeBytes(bytes)
             temp.requireHashEquals(kwormFile.hash)
             temp.renameTo(actualFile)
-            transaction(database) {
+            transaction(Database.connect(databaseCP)) {
                 KwormFileTable.insert {
                     it[path] = kwormFile.path
                     it[hash] = kwormFile.hash
@@ -86,7 +93,7 @@ class FileStore(val storePath: File) {
             val actualPath = resolve(kwormFile.path)
             temp.requireHashEquals(kwormFile.hash)
             temp.renameTo(actualPath)
-            transaction(database) {
+            transaction(Database.connect(databaseCP)) {
                 KwormFileTable.insert {
                     it[path] = kwormFile.path
                     it[hash] = kwormFile.hash
@@ -100,7 +107,7 @@ class FileStore(val storePath: File) {
         val actualPath = resolve(kwormPath)
         val actualHash = actualPath.hash()
         val actualUpdateTime = utcTimeMillis
-        transaction(database) {
+        transaction(Database.connect(databaseCP)) {
             KwormFileTable.insert {
                 it[path] = kwormPath
                 it[hash] = actualHash
@@ -110,7 +117,7 @@ class FileStore(val storePath: File) {
     }
 
     fun storeAllExisting(kwormPaths: Sequence<String>) {
-        transaction(database) {
+        transaction(Database.connect(databaseCP)) {
             for (kwormPath in kwormPaths) {
                 val actualPath = resolve(kwormPath)
                 val actualHash = actualPath.hash()
@@ -128,7 +135,7 @@ class FileStore(val storePath: File) {
     fun update(kwormPath: KwormFile) {
         val actualHash = resolve(kwormPath.path).hash()
         if (kwormPath.hash != actualHash) {
-            transaction(database) {
+            transaction(Database.connect(databaseCP)) {
                 KwormFileTable.update({ path eq kwormPath.path }) {
                     it[hash] = actualHash
                     it[updateTime] = utcTimeMillis
@@ -138,7 +145,7 @@ class FileStore(val storePath: File) {
     }
 
     fun updateAll(kwormPaths: Sequence<KwormFile>) {
-        transaction(database) {
+        transaction(Database.connect(databaseCP)) {
             kwormPaths.forEach { kwormFile ->
                 val actualHash = resolve(kwormFile.path).hash()
                 if (kwormFile.hash != actualHash) {
