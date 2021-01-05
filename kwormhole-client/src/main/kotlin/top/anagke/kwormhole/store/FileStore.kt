@@ -112,29 +112,23 @@ class FileStore(val storePath: File) {
         }
     }
 
-    fun storeExisting(kwormPath: String) {
-        val actualPath = resolve(kwormPath)
-        val actualHash = actualPath.hash()
-        val actualUpdateTime = utcTimeMillis
+    fun storeExisting(kwormFile: KwormFile) {
         transaction(Database.connect(databaseCP)) {
             KwormFileTable.insert {
-                it[path] = kwormPath
-                it[hash] = actualHash
-                it[updateTime] = actualUpdateTime
+                it[path] = kwormFile.path
+                it[hash] = kwormFile.hash
+                it[updateTime] = kwormFile.updateTime
             }
         }
     }
 
-    fun storeAllExisting(kwormPaths: Sequence<String>) {
+    fun storeAllExisting(kwormFiles: Sequence<KwormFile>) {
         transaction(Database.connect(databaseCP)) {
-            for (kwormPath in kwormPaths) {
-                val actualPath = resolve(kwormPath)
-                val actualHash = actualPath.hash()
-                val actualUpdateTime = utcTimeMillis
+            for (kwormFile in kwormFiles) {
                 KwormFileTable.insert {
-                    it[path] = kwormPath
-                    it[hash] = actualHash
-                    it[updateTime] = actualUpdateTime
+                    it[path] = kwormFile.path
+                    it[hash] = kwormFile.hash
+                    it[updateTime] = kwormFile.updateTime
                 }
             }
         }
