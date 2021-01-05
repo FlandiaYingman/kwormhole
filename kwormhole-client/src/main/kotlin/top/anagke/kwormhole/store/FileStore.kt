@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.update
 import top.anagke.kwormhole.store.KwormFile.Companion.utcTimeMillis
 import top.anagke.kwormhole.store.KwormFileTable.hash
 import top.anagke.kwormhole.store.KwormFileTable.path
-import top.anagke.kwormhole.store.KwormFileTable.updateTime
+import top.anagke.kwormhole.store.KwormFileTable.time
 import top.anagke.kwormhole.util.hash
 import top.anagke.kwormhole.util.requireHashEquals
 import top.anagke.kwormhole.util.use
@@ -44,7 +44,7 @@ class FileStore(val storePath: File) {
     fun list(): Sequence<KwormFile> {
         return transaction(Database.connect(databaseCP)) {
             KwormFileTable.selectAll().map {
-                KwormFile(it[path], FileMetadata(it[hash], it[updateTime]))
+                KwormFile(it[path], it[hash], it[time])
             }.asSequence()
         }
     }
@@ -53,7 +53,7 @@ class FileStore(val storePath: File) {
     fun find(kwormPath: String): KwormFile? {
         return transaction(Database.connect(databaseCP)) {
             val single = KwormFileTable.select { path eq kwormPath }.singleOrNull() ?: return@transaction null
-            KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
+            KwormFile(single[path], single[hash], single[time])
         }
     }
 
@@ -64,7 +64,7 @@ class FileStore(val storePath: File) {
             }
         }.asSequence().map {
             val single = it ?: return@map null
-            KwormFile(single[path], FileMetadata(single[hash], single[updateTime]))
+            KwormFile(single[path], single[hash], single[time])
         }
     }
 
@@ -80,7 +80,7 @@ class FileStore(val storePath: File) {
                 KwormFileTable.insert {
                     it[path] = kwormFile.path
                     it[hash] = kwormFile.hash
-                    it[updateTime] = kwormFile.updateTime
+                    it[time] = kwormFile.time
                 }
             }
         }
@@ -106,7 +106,7 @@ class FileStore(val storePath: File) {
                 KwormFileTable.insert {
                     it[path] = kwormFile.path
                     it[hash] = kwormFile.hash
-                    it[updateTime] = kwormFile.updateTime
+                    it[time] = kwormFile.time
                 }
             }
         }
@@ -117,7 +117,7 @@ class FileStore(val storePath: File) {
             KwormFileTable.insert {
                 it[path] = kwormFile.path
                 it[hash] = kwormFile.hash
-                it[updateTime] = kwormFile.updateTime
+                it[time] = kwormFile.time
             }
         }
     }
@@ -128,7 +128,7 @@ class FileStore(val storePath: File) {
                 KwormFileTable.insert {
                     it[path] = kwormFile.path
                     it[hash] = kwormFile.hash
-                    it[updateTime] = kwormFile.updateTime
+                    it[time] = kwormFile.time
                 }
             }
         }
@@ -141,7 +141,7 @@ class FileStore(val storePath: File) {
             transaction(Database.connect(databaseCP)) {
                 KwormFileTable.update({ path eq kwormPath.path }) {
                     it[hash] = actualHash
-                    it[updateTime] = utcTimeMillis
+                    it[time] = utcTimeMillis
                 }
             }
         }
@@ -154,7 +154,7 @@ class FileStore(val storePath: File) {
                 if (kwormFile.hash != actualHash) {
                     KwormFileTable.update({ path eq kwormFile.path }) {
                         it[hash] = actualHash
-                        it[updateTime] = utcTimeMillis
+                        it[time] = utcTimeMillis
                     }
                 }
             }
