@@ -16,11 +16,12 @@ import top.anagke.kwormhole.store.KwormFileTable.time
 import top.anagke.kwormhole.util.hash
 import top.anagke.kwormhole.util.requireHashEquals
 import top.anagke.kwormhole.util.use
+import java.io.Closeable
 import java.io.File
 import java.io.RandomAccessFile
 import kotlin.math.max
 
-class FileStore(val storePath: File) {
+class FileStore(val storePath: File) : Closeable {
 
     private val databasePath = storePath.resolve(".kwormhole.db")
 
@@ -168,6 +169,11 @@ class FileStore(val storePath: File) {
 
     private fun resolveTemp(kwormPath: String): File {
         return contentPath.resolve(kwormPath.trimStart('/').trimEnd('/') + ".temp")
+    }
+
+
+    override fun close() {
+        databaseCP.close()
     }
 
 }
