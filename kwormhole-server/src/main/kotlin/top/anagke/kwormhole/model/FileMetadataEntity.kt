@@ -8,7 +8,7 @@ import javax.persistence.Id
 @Entity
 data class FileMetadataEntity(
     val path: String = "",
-    val updateTime: Long = -1
+    val time: Long = -1
 ) {
 
     @Id

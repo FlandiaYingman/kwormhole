@@ -32,6 +32,6 @@ interface FileMetadataRepo : JpaRepository<FileMetadataEntity, Int> {
 
 
     fun putFile(path: String, metadata: FileMetadata) =
-        this.save(FileMetadataEntity(path, metadata.updateTime))
+        this.save(FileMetadataEntity(path, metadata.time))
 
 }
