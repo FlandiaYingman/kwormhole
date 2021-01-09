@@ -15,106 +15,47 @@ import top.anagke.kwormhole.store.KwormFileTable.path
 import top.anagke.kwormhole.store.KwormFileTable.time
 import top.anagke.kwormhole.util.hash
 import top.anagke.kwormhole.util.requireHashEquals
-import top.anagke.kwormhole.util.use
 import java.io.Closeable
 import java.io.File
-import java.io.RandomAccessFile
-import kotlin.math.max
 
-class FileStore(val storePath: File) : Closeable {
+class FileStore(private val storePath: File) : Closeable {
 
-    private val databasePath = storePath.resolve(".kwormhole.db")
+    private val databaseFile: File = storePath.resolve(".kwormhole.db")
 
-    private val contentPath = storePath.resolve(".")
-
-    private val databaseCP = kotlin.run {
+    private val databaseCP = run {
         val config = HikariConfig()
-        config.jdbcUrl = "jdbc:sqlite:${databasePath}"
+        config.jdbcUrl = "jdbc:sqlite:${databaseFile}"
         config.driverClassName = "org.sqlite.JDBC"
         HikariDataSource(config)
     }
 
+    private val database get() = Database.connect(databaseCP)
+
+
     init {
-        storePath.mkdirs()
-        transaction(Database.connect(databaseCP)) {
+        transaction(database) {
             SchemaUtils.create(KwormFileTable)
         }
     }
 
 
-    fun list(): Sequence<KwormFile> {
-        return transaction(Database.connect(databaseCP)) {
-            KwormFileTable.selectAll().map {
-                KwormFile(it[path], it[hash], it[time])
-            }.asSequence()
+    fun list(): List<KwormFile> {
+        return transaction(database) {
+            KwormFileTable.selectAll()
+                .map { KwormFile(it[path], it[hash], it[time]) }
+                .toList()
         }
     }
-
 
     fun find(kwormPath: String): KwormFile? {
-        return transaction(Database.connect(databaseCP)) {
-            val single = KwormFileTable.select { path eq kwormPath }.singleOrNull() ?: return@transaction null
-            KwormFile(single[path], single[hash], single[time])
+        return transaction(database) {
+            val single = KwormFileTable.select { path eq kwormPath }.singleOrNull()
+            if (single != null) KwormFile(single[path], single[hash], single[time]) else null
         }
     }
 
-    fun findAll(kwormPaths: Sequence<String>): Sequence<KwormFile?> {
-        return transaction(Database.connect(databaseCP)) {
-            kwormPaths.toList().map {
-                KwormFileTable.select { path eq it }.singleOrNull()
-            }
-        }.asSequence().map {
-            val single = it ?: return@map null
-            KwormFile(single[path], single[hash], single[time])
-        }
-    }
-
-
-    fun store(bytes: ByteArray, kwormFile: KwormFile) {
-        resolveTemp(kwormFile.path).use { temp ->
-            val actualFile = resolve(kwormFile.path)
-            temp.parentFile.mkdirs()
-            temp.writeBytes(bytes)
-            temp.requireHashEquals(kwormFile.hash)
-            temp.renameTo(actualFile)
-            transaction(Database.connect(databaseCP)) {
-                KwormFileTable.insert {
-                    it[path] = kwormFile.path
-                    it[hash] = kwormFile.hash
-                    it[time] = kwormFile.time
-                }
-            }
-        }
-    }
-
-    fun storePart(bytes: ByteArray, range: LongRange, kwormPath: String) {
-        val temp = resolveTemp(kwormPath)
-        temp.parentFile.mkdirs()
-        temp.createNewFile()
-        RandomAccessFile(temp, "rw").use {
-            it.setLength(max(it.length(), range.last))
-            it.seek(range.first)
-            it.write(bytes)
-        }
-    }
-
-    fun storePart(kwormFile: KwormFile) {
-        resolveTemp(kwormFile.path).use { temp ->
-            val actualPath = resolve(kwormFile.path)
-            temp.requireHashEquals(kwormFile.hash)
-            temp.renameTo(actualPath)
-            transaction(Database.connect(databaseCP)) {
-                KwormFileTable.insert {
-                    it[path] = kwormFile.path
-                    it[hash] = kwormFile.hash
-                    it[time] = kwormFile.time
-                }
-            }
-        }
-    }
-
-    fun storeExisting(kwormFile: KwormFile) {
-        transaction(Database.connect(databaseCP)) {
+    fun store(kwormFile: KwormFile) {
+        transaction(database) {
             KwormFileTable.insert {
                 it[path] = kwormFile.path
                 it[hash] = kwormFile.hash
@@ -123,23 +64,22 @@ class FileStore(val storePath: File) : Closeable {
         }
     }
 
-    fun storeAllExisting(kwormFiles: Sequence<KwormFile>) {
-        transaction(Database.connect(databaseCP)) {
-            for (kwormFile in kwormFiles) {
-                KwormFileTable.insert {
-                    it[path] = kwormFile.path
-                    it[hash] = kwormFile.hash
-                    it[time] = kwormFile.time
-                }
-            }
-        }
+    fun storeNew(kwormPath: String) {
+        store(KwormFile(kwormPath, hash(kwormPath)))
     }
 
+    fun storeBytes(bytes: ByteArray, kwormFile: KwormFile) {
+        val file = resolve(kwormFile.path)
+        file.parentFile.mkdirs()
+        file.writeBytes(bytes)
+        file.requireHashEquals(kwormFile.hash)
+        store(kwormFile)
+    }
 
     fun update(kwormPath: KwormFile) {
-        val actualHash = resolve(kwormPath.path).hash()
+        val actualHash = hash(kwormPath.path)
         if (kwormPath.hash != actualHash) {
-            transaction(Database.connect(databaseCP)) {
+            transaction(database) {
                 KwormFileTable.update({ path eq kwormPath.path }) {
                     it[hash] = actualHash
                     it[time] = utcTimeMillis
@@ -148,27 +88,28 @@ class FileStore(val storePath: File) : Closeable {
         }
     }
 
-    fun updateAll(kwormPaths: Sequence<KwormFile>) {
-        transaction(Database.connect(databaseCP)) {
-            kwormPaths.forEach { kwormFile ->
-                val actualHash = resolve(kwormFile.path).hash()
-                if (kwormFile.hash != actualHash) {
-                    KwormFileTable.update({ path eq kwormFile.path }) {
-                        it[hash] = actualHash
-                        it[time] = utcTimeMillis
-                    }
-                }
-            }
-        }
+    fun scan() {
+        val (presentFiles, absentFiles) = storePath.walk()
+            .filter(File::isFile)
+            .filterNot { it == databaseFile }
+            .map { relative(it) }
+            .map { it to find(it) }
+            .partition { it.second != null }
+        presentFiles.forEach { (_, kwormFile) -> update(kwormFile!!) }
+        absentFiles.forEach { (kwormPath, _) -> storeNew(kwormPath) }
     }
 
 
     fun resolve(kwormPath: String): File {
-        return contentPath.resolve(kwormPath.trimStart('/'))
+        return storePath.resolve(kwormPath.trimStart('/'))
     }
 
-    private fun resolveTemp(kwormPath: String): File {
-        return contentPath.resolve(kwormPath.trimStart('/').trimEnd('/') + ".temp")
+    fun relative(file: File): String {
+        return "/${file.toRelativeString(storePath).replace('\\', '/')}"
+    }
+
+    fun hash(kwormPath: String): Long {
+        return resolve(kwormPath).hash()
     }
 
 

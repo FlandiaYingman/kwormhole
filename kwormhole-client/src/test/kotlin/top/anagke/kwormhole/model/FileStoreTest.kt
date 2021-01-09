@@ -8,8 +8,6 @@ import top.anagke.kwormhole.store.FileStore
 import top.anagke.kwormhole.store.KwormFile
 import top.anagke.kwormhole.store.KwormFile.Companion.utcTimeMillis
 import top.anagke.kwormhole.util.KiB
-import top.anagke.kwormhole.util.MiB
-import top.anagke.kwormhole.util.forEachBlock
 import top.anagke.kwormhole.util.hash
 import top.anagke.kwormhole.util.use
 import java.io.File
@@ -18,79 +16,16 @@ import kotlin.random.Random
 internal class FileStoreTest {
 
     companion object {
-        private const val RANDOM_TIMES = 12
-        private const val PATH_MAX_DEPTH = 6
+        private val RANDOM_TIMES = 10
+        private val DATA_LENGTH = 10.KiB
+        private val PATH_MAX_DEPTH = 6
+
         private val TEST_DIR = File("TEST")
     }
 
     @Test
-    fun testStoreFind() {
-        val testBytesList = Random.nextBytesList(RANDOM_TIMES, 4.KiB)
-        val testKwormList = List(RANDOM_TIMES) {
-            val path = Random.nextPath(PATH_MAX_DEPTH)
-            val hash = testBytesList[it].hash()
-            val time = Random.nextLong(utcTimeMillis)
-            KwormFile(path, hash, time)
-        }
-        TEST_DIR.mkdirs()
-        TEST_DIR.use { _ ->
-            FileStore(TEST_DIR).use { fileStore ->
-                repeat(RANDOM_TIMES) {
-                    val bytes = testBytesList[it]
-                    val kworm = testKwormList[it]
-                    fileStore.store(bytes, kworm)
-                }
-                repeat(RANDOM_TIMES) {
-                    val expected = testKwormList[it]
-                    val actual = fileStore.find(testKwormList[it].path)!!
-                    assertEquals(expected, actual)
-
-                    val expectedBytes = testBytesList[it]
-                    val actualBytes = fileStore.resolve(actual.path).readBytes()
-                    assertArrayEquals(expectedBytes, actualBytes)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testStorePartFind() {
-        val testBytesList = Random.nextBytesList(RANDOM_TIMES, 16.MiB)
-        val testKwormList = List(RANDOM_TIMES) {
-            val path = Random.nextPath(PATH_MAX_DEPTH)
-            val hash = testBytesList[it].hash()
-            val time = Random.nextLong(utcTimeMillis)
-            KwormFile(path, hash, time)
-        }
-        TEST_DIR.mkdirs()
-        TEST_DIR.use { _ ->
-            FileStore(TEST_DIR).use { fileStore ->
-                repeat(RANDOM_TIMES) {
-                    val bytes = testBytesList[it]
-                    val kworm = testKwormList[it]
-                    var total = 0L
-                    bytes.forEachBlock(4.MiB) { buf, read ->
-                        fileStore.storePart(buf, total until total + read, kworm.path)
-                        total += read
-                    }
-                    fileStore.storePart(kworm)
-                }
-                repeat(RANDOM_TIMES) {
-                    val expected = testKwormList[it]
-                    val actual = fileStore.find(testKwormList[it].path)!!
-                    assertEquals(expected, actual)
-
-                    val expectedBytes = testBytesList[it]
-                    val actualBytes = fileStore.resolve(actual.path).readBytes()
-                    assertArrayEquals(expectedBytes, actualBytes)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun testStoreExistingFind() {
-        val testBytesList = Random.nextBytesList(RANDOM_TIMES, 16.MiB)
+    fun testStore() {
+        val testBytesList = Random.nextBytesList(RANDOM_TIMES, DATA_LENGTH)
         val testKwormList = List(RANDOM_TIMES) {
             val path = Random.nextPath(PATH_MAX_DEPTH)
             val hash = testBytesList[it].hash()
@@ -107,7 +42,7 @@ internal class FileStoreTest {
                 }
 
                 repeat(RANDOM_TIMES) { i ->
-                    fileStore.storeExisting(testKwormList[i])
+                    fileStore.store(testKwormList[i])
                 }
                 val storingRange = 0..utcTimeMillis
 
@@ -127,9 +62,39 @@ internal class FileStoreTest {
     }
 
     @Test
-    fun testUpdateFind() {
-        val testBytesList = Random.nextBytesList(RANDOM_TIMES, 4.KiB)
-        val testModifiedBytesList = Random.nextBytesList(RANDOM_TIMES, 4.KiB)
+    fun testStoreBytes() {
+        val testBytesList = Random.nextBytesList(RANDOM_TIMES, DATA_LENGTH)
+        val testKwormList = List(RANDOM_TIMES) {
+            val path = Random.nextPath(PATH_MAX_DEPTH)
+            val hash = testBytesList[it].hash()
+            val time = Random.nextLong(utcTimeMillis)
+            KwormFile(path, hash, time)
+        }
+        TEST_DIR.mkdirs()
+        TEST_DIR.use { _ ->
+            FileStore(TEST_DIR).use { fileStore ->
+                repeat(RANDOM_TIMES) {
+                    val bytes = testBytesList[it]
+                    val kworm = testKwormList[it]
+                    fileStore.storeBytes(bytes, kworm)
+                }
+                repeat(RANDOM_TIMES) {
+                    val expected = testKwormList[it]
+                    val actual = fileStore.find(testKwormList[it].path)!!
+                    assertEquals(expected, actual)
+
+                    val expectedBytes = testBytesList[it]
+                    val actualBytes = fileStore.resolve(actual.path).readBytes()
+                    assertArrayEquals(expectedBytes, actualBytes)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testUpdate() {
+        val testBytesList = Random.nextBytesList(RANDOM_TIMES, DATA_LENGTH)
+        val testModifiedBytesList = Random.nextBytesList(RANDOM_TIMES, DATA_LENGTH)
         val testKwormList = List(RANDOM_TIMES) {
             val path = Random.nextPath(PATH_MAX_DEPTH)
             val hash = testBytesList[it].hash()
@@ -143,7 +108,7 @@ internal class FileStoreTest {
                 repeat(RANDOM_TIMES) {
                     val bytes = testBytesList[it]
                     val kworm = testKwormList[it]
-                    fileStore.store(bytes, kworm)
+                    fileStore.storeBytes(bytes, kworm)
                 }
                 //Modify & Update
                 repeat(RANDOM_TIMES) {
