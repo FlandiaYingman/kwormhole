@@ -10,8 +10,6 @@ class Kwormhole : App(KwormholeView::class) {
     override val configPath: Path = Paths.get("./kwormhole.properties")
 
     override fun init() {
-        config.set("syncDir" to listOf(""))
-        config.save()
     }
 
 }
