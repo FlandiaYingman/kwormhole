@@ -4,8 +4,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class KwormholeApplication
+class KwormholeApp
 
 fun main(args: Array<String>) {
-    runApplication<KwormholeApplication>(*args)
+    runApplication<KwormholeApp>(*args)
 }

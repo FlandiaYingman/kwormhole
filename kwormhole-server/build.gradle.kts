@@ -33,6 +33,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
     implementation("io.github.microutils:kotlin-logging:2.0.3")
+    implementation("org.lz4:lz4-java:1.7.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
