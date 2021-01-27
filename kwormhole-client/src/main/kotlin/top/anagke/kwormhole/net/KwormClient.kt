@@ -30,8 +30,7 @@ class KwormClient(
      * @return the count of files
      */
     suspend fun countFiles(): Int {
-        return httpClient.get(host = host, port = port) {
-            parameter("method", "count")
+        return httpClient.get(host = host, port = port, path = "/count") {
         }
     }
 
@@ -43,8 +42,7 @@ class KwormClient(
      * @return the file list
      */
     suspend fun listFiles(start: Int, limit: Int): List<KwormFile> {
-        return httpClient.get(host = host, port = port) {
-            parameter("method", "list")
+        return httpClient.get(host = host, port = port, path = "/list") {
             parameter("start", start)
             parameter("limit", limit)
         }
