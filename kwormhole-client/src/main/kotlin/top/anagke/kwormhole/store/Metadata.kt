@@ -3,26 +3,22 @@ package top.anagke.kwormhole.store
 import java.time.Clock
 import java.time.Instant
 
-data class KwormFile(
+data class Metadata(
     val path: String,
-    val status: Status,
+    val length: Long,
     val hash: Long,
     val time: Long = utcTimeMillis
 ) {
 
-    enum class Status {
-        CREATED, DELETED;
-    }
-
     companion object {
         val utcTimeMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
 
-        fun dummy(path: String): KwormFile {
-            return KwormFile(path, Status.CREATED, 0, Long.MIN_VALUE)
+        fun dummy(path: String): Metadata {
+            return Metadata(path, 0, 0, Long.MIN_VALUE)
         }
     }
 
-    operator fun compareTo(other: KwormFile): Int {
+    operator fun compareTo(other: Metadata): Int {
         return time.compareTo(other.time)
     }
 
