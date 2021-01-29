@@ -16,6 +16,14 @@ data class KwormFile(
 
     companion object {
         val utcTimeMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
+
+        fun dummy(path: String): KwormFile {
+            return KwormFile(path, Status.CREATED, 0, Long.MIN_VALUE)
+        }
+    }
+
+    operator fun compareTo(other: KwormFile): Int {
+        return time.compareTo(other.time)
     }
 
 }
