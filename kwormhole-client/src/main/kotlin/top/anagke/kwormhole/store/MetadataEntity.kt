@@ -1,11 +1,11 @@
 package top.anagke.kwormhole.store
 
-import org.jetbrains.exposed.dao.IntEntity
-import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.dao.Entity
+import org.jetbrains.exposed.dao.EntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 
-class MetadataEntity(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<MetadataEntity>(MetadataTable) {
+class MetadataEntity(id: EntityID<String>) : Entity<String>(id) {
+    companion object : EntityClass<String, MetadataEntity>(MetadataTable) {
         fun MetadataEntity.toObj(): Metadata {
             return Metadata(path, length, hash, time)
         }
