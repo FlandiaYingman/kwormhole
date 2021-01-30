@@ -7,7 +7,7 @@ data class Metadata(
     val path: String,
     val length: Long,
     val hash: Long,
-    val time: Long = utcEpochMillis
+    val time: Long
 ) {
 
     companion object {
