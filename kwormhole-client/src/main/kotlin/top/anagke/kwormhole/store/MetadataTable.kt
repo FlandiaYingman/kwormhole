@@ -10,4 +10,5 @@ object MetadataTable : IdTable<String>("file_metadata") {
     val hash = long("hash")
     val time = long("time")
     override val id: Column<EntityID<String>> = path.entityId()
+    override val primaryKey get() = PrimaryKey(id)
 }
