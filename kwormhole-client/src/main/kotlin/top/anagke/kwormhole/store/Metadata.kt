@@ -7,11 +7,11 @@ data class Metadata(
     val path: String,
     val length: Long,
     val hash: Long,
-    val time: Long = utcTimeMillis
+    val time: Long = utcEpochMillis
 ) {
 
     companion object {
-        val utcTimeMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
+        val utcEpochMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
 
         fun dummy(path: String): Metadata {
             return Metadata(path, 0, 0, Long.MIN_VALUE)
