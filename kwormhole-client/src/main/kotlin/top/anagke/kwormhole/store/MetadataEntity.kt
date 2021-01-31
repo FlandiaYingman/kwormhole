@@ -11,7 +11,7 @@ class MetadataEntity(id: EntityID<String>) : Entity<String>(id) {
         }
 
         fun MetadataEntity.fromObj(metadata: Metadata) {
-            path = metadata.path
+            if (path != metadata.path) throw IllegalArgumentException("Paths are not the same.")
             length = metadata.length
             hash = metadata.hash
             time = metadata.time
