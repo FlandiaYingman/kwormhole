@@ -22,6 +22,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
 
+    implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.github.microutils:kotlin-logging:2.0.4")
 
     implementation("no.tornado:tornadofx:1.7.20")
