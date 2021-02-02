@@ -68,6 +68,7 @@ class KwormStore {
         tempContentMap[path] = content
     }
 
+
     @Synchronized
     fun delete(path: String) {
         metadataStore.deleteMetadata(path)
@@ -76,8 +77,13 @@ class KwormStore {
 
 
     private fun storeExisting(path: String, metadata: KwormFile, content: ByteArray) {
-        metadataStore.putMetadata(path, metadata)
-        contentStore.putContent(path, content)
+        if (metadataStore.exists(path) && contentStore.exists(path)) {
+            metadataStore.updateMetadata(path, metadata)
+            contentStore.updateContent(path, content)
+        } else {
+            metadataStore.putMetadata(path, metadata)
+            contentStore.putContent(path, content)
+        }
     }
 
 }

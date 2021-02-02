@@ -1,14 +1,19 @@
 package top.anagke.kwormhole.controller
 
+import org.springframework.core.io.ByteArrayResource
+import org.springframework.http.HttpEntity
 import org.springframework.http.MediaType.APPLICATION_JSON
-import org.springframework.http.MediaType.APPLICATION_OCTET_STREAM
+import org.springframework.http.MediaType.MULTIPART_FORM_DATA
 import org.springframework.http.ResponseEntity
+import org.springframework.http.client.MultipartBodyBuilder
+import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import top.anagke.kwormhole.model.KwormFile
 import top.anagke.kwormhole.model.store.KwormStore
 
@@ -19,87 +24,77 @@ class KwormController(
 
     private val log = mu.KotlinLogging.logger {}
 
-    @GetMapping("/count")
-    private fun count(): ResponseEntity<Long> {
-        val count = kwormStore.count()
-        log.info { "GET: count, result=$count" }
-        return ResponseEntity.ok(count)
-    }
-
-    @GetMapping("/list")
-    private fun list(): ResponseEntity<List<KwormFile>> {
+    @GetMapping("/")
+    private fun requestList()
+            : ResponseEntity<List<KwormFile>> {
         val list = kwormStore.list()
-        log.info { "GET: list, result.size=${list.size}" }
+        log.info { "REQUEST: list, OK" }
         return ResponseEntity.ok(list)
     }
 
 
-    @GetMapping("/{*path}", params = ["method=metadata"])
-    private fun getMetadata(
+    @GetMapping("/{*path}", params = ["peek="])
+    private fun requestPeek(
         @PathVariable path: String
     ): ResponseEntity<KwormFile> {
         return if (kwormStore.contains(path)) {
             val metadata = kwormStore.getMetadata(path)
-            log.info { "GET: get metadata, path=$path, result=$metadata" }
+            log.info { "REQUEST: peek path=$path, OK" }
             ResponseEntity.ok()
                 .contentType(APPLICATION_JSON)
                 .body(metadata)
         } else {
-            log.info { "GET: get metadata, path=$path, result=not_found" }
+            log.info { "REQUEST: peek path=$path, Not Found" }
             ResponseEntity.notFound().build()
         }
     }
 
-    @GetMapping("/{*path}", params = ["method=content"])
-    private fun getContent(
+    @GetMapping("/{*path}")
+    private fun requestDownload(
         @PathVariable path: String
-    ): ResponseEntity<ByteArray> {
+    ): ResponseEntity<MultiValueMap<String, HttpEntity<*>>> {
         return if (kwormStore.contains(path)) {
+            val metadata = kwormStore.getMetadata(path)
             val content = kwormStore.getContent(path)
-            log.info { "GET: get content, path=$path, result.size=${content.size}" }
+            val bodyBuilder = MultipartBodyBuilder()
+            bodyBuilder.part("metadata", metadata)
+            bodyBuilder.part("content", ByteArrayResource(content))
+            log.info { "REQUEST: download path=$path, OK" }
             return ResponseEntity.ok()
-                .contentType(APPLICATION_OCTET_STREAM)
-                .contentLength(content.size.toLong())
-                .body(content)
+                .contentType(MULTIPART_FORM_DATA)
+                .body(bodyBuilder.build())
         } else {
-            log.info { "GET: get content, path=$path, result=not_found" }
-            ResponseEntity.notFound().build()
+            log.info { "REQUEST: download path=$path, Not Found" }
+            ResponseEntity.notFound()
+                .build()
         }
-
     }
 
 
-    @PutMapping("/{*path}", params = ["method=metadata"])
-    private fun putMetadata(
+    @PostMapping("/{*path}")
+    private fun requestUpload(
         @PathVariable path: String,
-        @RequestBody metadata: KwormFile
+        @RequestParam metadata: KwormFile,
+        @RequestParam content: MultipartFile
     ): ResponseEntity<Unit> {
-        log.info { "PUT: put metadata, path=$path, metadata=$metadata" }
         kwormStore.putMetadata(path, metadata)
-        return ResponseEntity.noContent().build()
-    }
-
-    @PutMapping("/{*path}", params = ["method=content"])
-    private fun putContent(
-        @PathVariable path: String,
-        @RequestBody content: ByteArray
-    ): ResponseEntity<Unit> {
-        log.info { "PUT: put content, path=$path, content.size=${content.size}" }
-        kwormStore.putContent(path, content)
-        return ResponseEntity.noContent().build()
+        kwormStore.putContent(path, content.bytes)
+        log.info { "REQUEST: upload path=$path, OK" }
+        return ResponseEntity.noContent()
+            .build()
     }
 
 
     @DeleteMapping("/{*path}")
-    private fun delete(
+    private fun requestDelete(
         @PathVariable path: String
     ): ResponseEntity<Unit> {
         return if (kwormStore.contains(path)) {
             kwormStore.delete(path)
-            log.info { "DELETE: delete content, path=$path, deleted" }
+            log.info { "REQUEST: delete path=$path, OK" }
             ResponseEntity.noContent().build()
         } else {
-            log.info { "DELETE: delete content, path=$path, not found" }
+            log.info { "REQUEST: delete path=$path, Not Found" }
             ResponseEntity.notFound().build()
         }
     }
