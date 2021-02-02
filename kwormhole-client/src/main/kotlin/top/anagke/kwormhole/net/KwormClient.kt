@@ -35,7 +35,7 @@ class KwormClient(
         return httpClient.get(host = host, port = port, path = "/")
     }
 
-    suspend fun peek(path: String): Metadata? {
+    suspend fun peekFile(path: String): Metadata? {
         return httpClient.get(host = host, port = port, path = path) {
             parameter("peek", "")
         }

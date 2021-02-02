@@ -13,7 +13,7 @@ class RemoteStore(private val client: KwormClient) : Store {
     }
 
     override fun getMetadata(path: String): Metadata {
-        return runBlocking { client.peek(path)!! }
+        return runBlocking { client.peekFile(path)!! }
     }
 
     override fun getContent(path: String): Content {
@@ -23,7 +23,7 @@ class RemoteStore(private val client: KwormClient) : Store {
     }
 
     override fun exists(path: String): Boolean {
-        return runBlocking { client.peek(path) } != null
+        return runBlocking { client.peekFile(path) } != null
     }
 
     override fun store(metadata: Metadata, content: Content) {
