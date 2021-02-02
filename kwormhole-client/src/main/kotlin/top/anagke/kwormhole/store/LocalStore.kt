@@ -33,6 +33,7 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
     }
 
 
+    @Synchronized
     fun index() {
         val indexTime = utcEpochMillis
         val thisHash = storeRoot.walk()
@@ -63,28 +64,33 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
     }
 
 
+    @Synchronized
     override fun list(): List<Metadata> {
         return transaction(database) {
             MetadataEntity.all().map { it.toObj() }.toList()
         }
     }
 
+    @Synchronized
     override fun getMetadata(path: String): Metadata {
         return transaction(database) {
             MetadataEntity[path].toObj()
         }
     }
 
+    @Synchronized
     override fun getContent(path: String): Content {
         return FileContent(resolve(path))
     }
 
+    @Synchronized
     override fun exists(path: String): Boolean {
         return transaction(database) {
             MetadataEntity.findById(path) != null
         }
     }
 
+    @Synchronized
     override fun store(metadata: Metadata, content: Content) {
         val path = metadata.path
         transaction(database) {
@@ -98,6 +104,7 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
         resolve(path).writeBytes(content.bytes())
     }
 
+    @Synchronized
     override fun delete(path: String) {
         transaction(database) {
             MetadataEntity[path].delete()
@@ -106,15 +113,16 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
     }
 
 
-    fun resolve(kwormPath: String): File {
+    private fun resolve(kwormPath: String): File {
         return storeRoot.resolve(kwormPath.trimStart('/'))
     }
 
-    fun relative(file: File): String {
+    private fun relative(file: File): String {
         return "/${file.toRelativeString(storeRoot).replace('\\', '/')}"
     }
 
 
+    @Synchronized
     override fun close() {
         databaseCP.close()
     }
