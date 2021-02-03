@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "top.anagke"
-version = "0.0.1"
+version = "0.1.0"
 
 repositories {
     maven { url = uri("https://maven.aliyun.com/repository/central") }
