@@ -6,7 +6,6 @@ import com.google.gson.Gson
 import io.ktor.client.HttpClient
 import io.ktor.client.call.receive
 import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.request.delete
 import io.ktor.client.request.forms.InputProvider
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
@@ -61,14 +60,12 @@ class KwormClient(
             body = MultiPartFormDataContent(
                 formData {
                     this.append("metadata", Gson().toJson(metadata))
-                    this.append("content", InputProvider(file.length()) { file.inputStream().asInput() })
+                    if (metadata.hash != null) {
+                        this.append("content", InputProvider(file.length()) { file.inputStream().asInput() })
+                    }
                 }
             )
         }
-    }
-
-    suspend fun deleteFile(path: String) {
-        httpClient.delete<Unit>(host = host, port = port, path = path)
     }
 
 }

@@ -30,8 +30,8 @@ class RemoteStore(private val client: KwormClient) : Store {
         runBlocking { client.uploadFile(metadata, (content as FileContent).file) }
     }
 
-    override fun delete(path: String) {
-        runBlocking { client.deleteFile(path) }
+    override fun delete(metadata: Metadata) {
+        runBlocking { client.uploadFile(metadata, File("")) }
     }
 
 }

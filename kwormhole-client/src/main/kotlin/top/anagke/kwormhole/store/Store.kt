@@ -11,20 +11,18 @@ interface Store {
 
     fun exists(path: String): Boolean
 
-    fun notExists(path: String): Boolean = !exists(path)
-
 
     fun store(metadata: Metadata, content: Content)
 
-    fun delete(path: String)
+    fun delete(metadata: Metadata)
 
 
     fun apply(patch: Metadata, store: Store) {
         val path = patch.path
-        if (patch.length >= 0) {
+        if (patch.hash != null) {
             this.store(patch, store.getContent(path))
         } else {
-            this.delete(path)
+            this.delete(patch)
         }
     }
 

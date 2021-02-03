@@ -36,28 +36,30 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
     @Synchronized
     fun index() {
         val indexTime = utcEpochMillis
-        val thisHash = storeRoot.walk()
+        val thisMet = storeRoot.walk()
             .filterNot { it sameTo databaseFile }
             .filter { it.isFile }
-            .map { relative(it) to FileContent(it).hash() }
+            .map { relative(it) to Metadata(relative(it), FileContent(it).hash(), utcEpochMillis) }
             .toMap()
-        val prevHash = list().asSequence()
-            .map { it.path to it.hash }
+        val prevMet = list().asSequence()
+            .map { it.path to it }
             .toMap()
-        (thisHash.keys + prevHash.keys).asSequence()
-            .filter { thisHash[it] != prevHash[it] }
+        (thisMet.keys + prevMet.keys).asSequence()
+            .filter {
+                thisMet[it]?.hash != prevMet[it]?.hash
+            }
             .forEach {
                 transaction(database) {
                     val entity = MetadataEntity.findById(it) ?: MetadataEntity.new(it) {}
                     //However the file is changed, update time field.
                     entity.time = indexTime
-                    if (it in thisHash) {
-                        //It still exists, set its length.
-                        entity.length = resolve(it).length()
-                        entity.hash = thisHash[it]!!
+                    if (it in thisMet) {
+                        //It still exists
+                        entity.hash = thisMet[it]!!.hash!!
+                        entity.hashNull = false
                     } else {
                         //It doesn't exists anymore, set its length to -1.
-                        entity.length = -1
+                        entity.hashNull = true
                     }
                 }
             }
@@ -105,11 +107,11 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
     }
 
     @Synchronized
-    override fun delete(path: String) {
+    override fun delete(metadata: Metadata) {
         transaction(database) {
-            MetadataEntity[path].delete()
+            MetadataEntity[metadata.path].delete()
         }
-        resolve(path).delete()
+        resolve(metadata.path).delete()
     }
 
 
