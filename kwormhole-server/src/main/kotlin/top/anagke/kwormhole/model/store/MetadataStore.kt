@@ -3,6 +3,7 @@ package top.anagke.kwormhole.model.store
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import top.anagke.kwormhole.model.KwormFile
+import top.anagke.kwormhole.model.KwormFile.Companion.deleted
 
 @Component
 internal class MetadataStore {
@@ -17,20 +18,13 @@ internal class MetadataStore {
     }
 
     fun putMetadata(path: String, metadata: KwormFile) {
-        requireNotExists(path)
-        checkEquality(path, metadata)
-        repo.save(metadata.toEntity())
-    }
-
-    fun updateMetadata(path: String, metadata: KwormFile) {
-        requireExists(path)
         checkEquality(path, metadata)
         repo.save(metadata.toEntity())
     }
 
     fun deleteMetadata(path: String) {
         requireExists(path)
-        repo.deleteById(path)
+        repo.save(deleted(repo.findById(path).get().toKwormFile()).toEntity())
     }
 
     fun exists(path: String): Boolean {
@@ -62,19 +56,13 @@ internal class MetadataStore {
         }
     }
 
-    private fun requireNotExists(path: String) {
-        if (this.exists(path)) {
-            throw NoSuchElementException("The metadata with path '$path' already exists.")
-        }
-    }
-
 
     private fun KwormFileEntity.toKwormFile(): KwormFile {
-        return KwormFile(path, hash, time)
+        return KwormFile(path, if (hashNull) null else hash, time)
     }
 
     private fun KwormFile.toEntity(): KwormFileEntity {
-        return KwormFileEntity(path, hash, time)
+        return KwormFileEntity(path, hash ?: 0, hash == null, time)
     }
 
 }

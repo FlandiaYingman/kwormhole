@@ -25,6 +25,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.google.code.gson:gson:2.8.6")
     implementation("org.junit.jupiter:junit-jupiter:5.4.2")
 
     runtimeOnly("mysql:mysql-connector-java")

@@ -8,7 +8,8 @@ internal data class KwormFileEntity(
     @Id
     val path: String,
     val hash: Long,
+    val hashNull: Boolean,
     val time: Long
 ) {
-    constructor() : this("", 0, 0)
+    constructor() : this("", 0, false, 0)
 }

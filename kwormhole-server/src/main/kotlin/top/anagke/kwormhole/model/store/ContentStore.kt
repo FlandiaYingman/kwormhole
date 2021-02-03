@@ -15,13 +15,7 @@ internal class ContentStore(
     }
 
     fun putContent(path: String, content: ByteArray) {
-        requireNotExists(path)
         path.toActualPath().createParents()
-        return path.toActualPath().writeBytes(content)
-    }
-
-    fun updateContent(path: String, content: ByteArray) {
-        requireExists(path)
         return path.toActualPath().writeBytes(content)
     }
 
@@ -43,12 +37,6 @@ internal class ContentStore(
     private fun requireExists(path: String) {
         if (this.notExists(path)) {
             throw NoSuchElementException("The content with path '$path' doesn't exist.")
-        }
-    }
-
-    private fun requireNotExists(path: String) {
-        if (this.exists(path)) {
-            throw NoSuchElementException("The content with path '$path' already exists.")
         }
     }
 
