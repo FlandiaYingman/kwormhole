@@ -4,7 +4,7 @@ import javax.persistence.Entity
 import javax.persistence.Id
 
 @Entity
-internal data class KwormFileEntity(
+internal data class MetadataEntity(
     @Id
     val path: String,
     val hash: Long,

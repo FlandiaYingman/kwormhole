@@ -2,7 +2,7 @@ package top.anagke.kwormhole.model.store
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
-import top.anagke.kwormhole.model.KwormFile
+import top.anagke.kwormhole.model.Metadata
 import java.io.File
 
 @Component
@@ -18,7 +18,7 @@ class KwormStore {
     private val contentStore: ContentStore = ContentStore(DEFAULT_CONTENT_LOCATION)
 
 
-    private val tempMetadataMap = HashMap<String, KwormFile>()
+    private val tempMetadataMap = HashMap<String, Metadata>()
 
     private val tempContentMap = HashMap<String, ByteArray>()
 
@@ -29,7 +29,7 @@ class KwormStore {
     }
 
     @Synchronized
-    fun list(): List<KwormFile> {
+    fun list(): List<Metadata> {
         return metadataStore.list()
     }
 
@@ -39,7 +39,7 @@ class KwormStore {
     }
 
     @Synchronized
-    fun getMetadata(path: String): KwormFile {
+    fun getMetadata(path: String): Metadata {
         return metadataStore.getMetadata(path)
     }
 
@@ -49,7 +49,7 @@ class KwormStore {
     }
 
     @Synchronized
-    fun putMetadata(path: String, metadata: KwormFile) {
+    fun putMetadata(path: String, metadata: Metadata) {
         if (metadata.hash == null) {
             metadataStore.putMetadata(path, metadata)
             if (contentStore.exists(path)) {
@@ -75,7 +75,7 @@ class KwormStore {
     }
 
 
-    private fun storeExisting(path: String, metadata: KwormFile, content: ByteArray) {
+    private fun storeExisting(path: String, metadata: Metadata, content: ByteArray) {
         metadataStore.putMetadata(path, metadata)
         contentStore.putContent(path, content)
     }

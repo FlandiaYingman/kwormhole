@@ -2,22 +2,22 @@ package top.anagke.kwormhole.model.store
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
-import top.anagke.kwormhole.model.KwormFile
-import top.anagke.kwormhole.model.KwormFile.Companion.deleted
+import top.anagke.kwormhole.model.Metadata
+import top.anagke.kwormhole.model.Metadata.Companion.deleted
 
 @Component
 internal class MetadataStore {
 
     @Autowired
-    private lateinit var repo: KwormFileRepo
+    private lateinit var repo: MetadataRepo
 
 
-    fun getMetadata(path: String): KwormFile {
+    fun getMetadata(path: String): Metadata {
         requireExists(path)
         return repo.findById(path).get().toKwormFile()
     }
 
-    fun putMetadata(path: String, metadata: KwormFile) {
+    fun putMetadata(path: String, metadata: Metadata) {
         checkEquality(path, metadata)
         repo.save(metadata.toEntity())
     }
@@ -39,12 +39,12 @@ internal class MetadataStore {
         return repo.count().toInt()
     }
 
-    fun list(): List<KwormFile> {
+    fun list(): List<Metadata> {
         return repo.findAll().map { it.toKwormFile() }
     }
 
 
-    private fun checkEquality(path: String, metadata: KwormFile) {
+    private fun checkEquality(path: String, metadata: Metadata) {
         if (path != metadata.path) {
             throw IllegalArgumentException("The path '$path' and the metadata.path '${metadata.path}' are not equal.")
         }
@@ -57,12 +57,12 @@ internal class MetadataStore {
     }
 
 
-    private fun KwormFileEntity.toKwormFile(): KwormFile {
-        return KwormFile(path, if (hashNull) null else hash, time)
+    private fun MetadataEntity.toKwormFile(): Metadata {
+        return Metadata(path, if (hashNull) null else hash, time)
     }
 
-    private fun KwormFile.toEntity(): KwormFileEntity {
-        return KwormFileEntity(path, hash ?: 0, hash == null, time)
+    private fun Metadata.toEntity(): MetadataEntity {
+        return MetadataEntity(path, hash ?: 0, hash == null, time)
     }
 
 }

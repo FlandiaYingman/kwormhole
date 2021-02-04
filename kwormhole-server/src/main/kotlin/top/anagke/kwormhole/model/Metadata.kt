@@ -3,7 +3,7 @@ package top.anagke.kwormhole.model
 import java.time.Clock
 import java.time.Instant
 
-data class KwormFile(
+data class Metadata(
     val path: String,
     val hash: Long?,
     val time: Long
@@ -12,8 +12,8 @@ data class KwormFile(
     companion object {
         val utcTimeMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
 
-        fun deleted(kwormFile: KwormFile): KwormFile {
-            return KwormFile(kwormFile.path, kwormFile.hash, kwormFile.time)
+        fun deleted(metadata: Metadata): Metadata {
+            return Metadata(metadata.path, metadata.hash, metadata.time)
         }
     }
 
