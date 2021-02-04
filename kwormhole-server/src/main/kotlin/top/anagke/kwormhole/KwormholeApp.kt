@@ -7,6 +7,7 @@ import org.springframework.boot.runApplication
 class KwormholeApp {
 
     companion object {
+        @JvmStatic
         fun main(args: Array<String>) {
             runApplication<KwormholeApp>(*args)
         }
