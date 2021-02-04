@@ -2,6 +2,7 @@ package top.anagke.kwormhole.controller
 
 import com.google.gson.Gson
 import org.springframework.core.io.ByteArrayResource
+import org.springframework.core.io.InputStreamResource
 import org.springframework.http.HttpEntity
 import org.springframework.http.MediaType.APPLICATION_JSON
 import org.springframework.http.MediaType.MULTIPART_FORM_DATA
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.model.Metadata
 import top.anagke.kwormhole.model.store.KwormStore
 import top.anagke.kwormhole.util.fromJson
@@ -60,7 +62,7 @@ class KwormController(
             val content = kwormStore.getContent(path)
             val bodyBuilder = MultipartBodyBuilder()
             bodyBuilder.part("metadata", metadata)
-            bodyBuilder.part("content", ByteArrayResource(content))
+            bodyBuilder.part("content", InputStreamResource(content.openStream()))
             log.info { "REQUEST: download path=$path, OK" }
             return ResponseEntity.ok()
                 .contentType(MULTIPART_FORM_DATA)
@@ -81,7 +83,7 @@ class KwormController(
         val metadataObj = Gson().fromJson<Metadata>(metadata)!!
         kwormStore.putMetadata(path, metadataObj)
         if (metadataObj.hash != null) {
-            val contentObj = content.get().inputStream.readBytes()
+            val contentObj = content.get().inputStream.use { Content.ofStream(it) }
             kwormStore.putContent(path, contentObj)
         }
         log.info { "REQUEST: upload path=$path, OK" }

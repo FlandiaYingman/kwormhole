@@ -2,6 +2,7 @@ package top.anagke.kwormhole.model.store
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
+import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.model.Metadata
 import java.io.File
 
@@ -20,7 +21,7 @@ class KwormStore {
 
     private val tempMetadataMap = HashMap<String, Metadata>()
 
-    private val tempContentMap = HashMap<String, ByteArray>()
+    private val tempContentMap = HashMap<String, Content>()
 
 
     @Synchronized
@@ -44,7 +45,7 @@ class KwormStore {
     }
 
     @Synchronized
-    fun getContent(path: String): ByteArray {
+    fun getContent(path: String): Content {
         return contentStore.getContent(path)
     }
 
@@ -65,7 +66,7 @@ class KwormStore {
     }
 
     @Synchronized
-    fun putContent(path: String, content: ByteArray) {
+    fun putContent(path: String, content: Content) {
         if (path in tempMetadataMap) {
             storeExisting(path, tempMetadataMap[path]!!, content)
             tempMetadataMap.remove(path)
@@ -75,7 +76,7 @@ class KwormStore {
     }
 
 
-    private fun storeExisting(path: String, metadata: Metadata, content: ByteArray) {
+    private fun storeExisting(path: String, metadata: Metadata, content: Content) {
         metadataStore.putMetadata(path, metadata)
         contentStore.putContent(path, content)
     }
