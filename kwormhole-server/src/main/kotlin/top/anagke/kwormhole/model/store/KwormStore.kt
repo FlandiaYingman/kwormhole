@@ -4,7 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.model.Metadata
+import top.anagke.kwormhole.model.Metadata.Companion.isAbsent
+import top.anagke.kwormhole.model.Metadata.Companion.isPresent
 import java.io.File
+
 
 @Component
 class KwormStore {
@@ -14,20 +17,11 @@ class KwormStore {
     }
 
 
-    @Autowired private lateinit var metadataStore: MetadataStore
+    @Autowired
+    private lateinit var metadataStore: MetadataStore
 
     private val contentStore: ContentStore = ContentStore(DEFAULT_CONTENT_LOCATION)
 
-
-    private val tempMetadataMap = HashMap<String, Metadata>()
-
-    private val tempContentMap = HashMap<String, Content>()
-
-
-    @Synchronized
-    fun count(): Long {
-        return metadataStore.count().toLong()
-    }
 
     @Synchronized
     fun list(): List<Metadata> {
@@ -50,35 +44,19 @@ class KwormStore {
     }
 
     @Synchronized
-    fun putMetadata(path: String, metadata: Metadata) {
-        if (metadata.hash == null) {
-            metadataStore.putMetadata(path, metadata)
-            if (contentStore.exists(path)) {
-                contentStore.deleteContent(path)
-            }
-        }
-        if (path in tempContentMap) {
-            storeExisting(path, metadata, tempContentMap[path]!!)
-            tempContentMap.remove(path)
-            return
-        }
-        tempMetadataMap[path] = metadata
+    fun put(path: String, metadata: Metadata, content: Content) {
+        require(path == metadata.path) { "The path and the path of metadata are required to be same" }
+        require(metadata.isPresent()) { "The metadata is required to be present" }
+        metadataStore.putMetadata(path, metadata)
+        contentStore.putContent(path, content)
     }
 
     @Synchronized
-    fun putContent(path: String, content: Content) {
-        if (path in tempMetadataMap) {
-            storeExisting(path, tempMetadataMap[path]!!, content)
-            tempMetadataMap.remove(path)
-            return
-        }
-        tempContentMap[path] = content
-    }
-
-
-    private fun storeExisting(path: String, metadata: Metadata, content: Content) {
+    fun delete(path: String, metadata: Metadata) {
+        require(path == metadata.path) { "The path and the path of metadata are required to be same" }
+        require(metadata.isAbsent()) { "The metadata is required to be absent" }
         metadataStore.putMetadata(path, metadata)
-        contentStore.putContent(path, content)
+        contentStore.deleteContent(path)
     }
 
 }

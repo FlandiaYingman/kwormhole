@@ -10,11 +10,21 @@ data class Metadata(
 ) {
 
     companion object {
+
         val utcTimeMillis get() = Instant.now(Clock.systemUTC()).toEpochMilli()
 
         fun deleted(metadata: Metadata): Metadata {
             return Metadata(metadata.path, metadata.hash, metadata.time)
         }
+
+        fun Metadata.isPresent(): Boolean {
+            return hash != null
+        }
+
+        fun Metadata.isAbsent(): Boolean {
+            return hash == null
+        }
+
     }
 
 }

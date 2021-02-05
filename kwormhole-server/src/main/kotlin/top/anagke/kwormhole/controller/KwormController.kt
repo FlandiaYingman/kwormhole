@@ -1,7 +1,6 @@
 package top.anagke.kwormhole.controller
 
 import com.google.gson.Gson
-import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.InputStreamResource
 import org.springframework.http.HttpEntity
 import org.springframework.http.MediaType.APPLICATION_JSON
@@ -16,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.model.Metadata
+import top.anagke.kwormhole.model.Metadata.Companion.isPresent
 import top.anagke.kwormhole.model.store.KwormStore
 import top.anagke.kwormhole.util.fromJson
 import java.util.*
@@ -29,13 +29,11 @@ class KwormController(
     private val log = mu.KotlinLogging.logger {}
 
     @GetMapping("/")
-    private fun requestList()
-            : ResponseEntity<List<Metadata>> {
+    private fun requestList(): ResponseEntity<List<Metadata>> {
         val list = kwormStore.list()
         log.info { "REQUEST: list, OK" }
         return ResponseEntity.ok(list)
     }
-
 
     @GetMapping("/{*path}", params = ["peek="])
     private fun requestPeek(
@@ -81,10 +79,11 @@ class KwormController(
         @RequestParam content: Optional<Part>
     ): ResponseEntity<Unit> {
         val metadataObj = Gson().fromJson<Metadata>(metadata)!!
-        kwormStore.putMetadata(path, metadataObj)
-        if (metadataObj.hash != null) {
+        if (metadataObj.isPresent()) {
             val contentObj = content.get().inputStream.use { Content.ofStream(it) }
-            kwormStore.putContent(path, contentObj)
+            kwormStore.put(path, metadataObj, contentObj)
+        } else {
+            kwormStore.delete(path, metadataObj)
         }
         log.info { "REQUEST: upload path=$path, OK" }
         return ResponseEntity.noContent()
