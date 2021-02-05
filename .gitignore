@@ -1,8 +1,3 @@
-### Kwormhole Excludes
-# Properties file
-kwormhole.properties
-**/kwormhole.properties
-
 ### Java template
 # Compiled class file
 *.class
