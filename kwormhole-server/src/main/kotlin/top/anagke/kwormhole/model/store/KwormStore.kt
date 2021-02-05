@@ -6,21 +6,16 @@ import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.model.Metadata
 import top.anagke.kwormhole.model.Metadata.Companion.isAbsent
 import top.anagke.kwormhole.model.Metadata.Companion.isPresent
-import java.io.File
 
 
 @Component
 class KwormStore {
 
-    companion object {
-        val DEFAULT_CONTENT_LOCATION = File("./store")
-    }
-
-
     @Autowired
     private lateinit var metadataStore: MetadataStore
 
-    private val contentStore: ContentStore = ContentStore(DEFAULT_CONTENT_LOCATION)
+    @Autowired
+    private lateinit var contentStore: ContentStore
 
 
     @Synchronized

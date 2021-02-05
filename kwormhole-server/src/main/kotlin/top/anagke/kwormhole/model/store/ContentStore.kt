@@ -1,13 +1,17 @@
 package top.anagke.kwormhole.model.store
 
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Component
 import top.anagke.kwormhole.model.Content
 import top.anagke.kwormhole.util.createParents
 import top.anagke.kwormhole.util.deleteParents
 import java.io.File
 
-internal class ContentStore(
-    val location: File
-) {
+@Component
+internal class ContentStore {
+
+    @Value("\${kwormhole.store.location}")
+    private lateinit var location: File
 
     fun getContent(path: String): Content {
         require(exists(path)) { "The path $path is required to exist." }
