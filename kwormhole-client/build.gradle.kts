@@ -1,22 +1,12 @@
 plugins {
-    java
-    kotlin("jvm") version "1.4.31"
+    kotlin("jvm")
+
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-group = "top.anagke"
-version = "0.2.0"
-
-repositories {
-    maven { url = uri("https://maven.aliyun.com/repository/central") }
-    maven { url = uri("https://maven.aliyun.com/repository/public") }
-    maven { url = uri("https://maven.aliyun.com/repository/google") }
-    maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-    jcenter()
-    mavenCentral()
-}
-
 dependencies {
+    implementation(project(":kwormhole-core"))
+
     implementation(kotlin("stdlib"))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
@@ -40,23 +30,6 @@ dependencies {
     runtimeOnly("org.jetbrains.exposed:exposed-jdbc:0.29.1")
     implementation("com.zaxxer:HikariCP:4.0.1")
     implementation("org.xerial:sqlite-jdbc:3.34.0")
-    implementation("org.lz4:lz4-java:1.7.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.compileKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
-
-tasks.compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
 }
