@@ -5,10 +5,12 @@ import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import top.anagke.kwormhole.store.Metadata.Companion.utcEpochMillis
-import top.anagke.kwormhole.store.MetadataEntity.Companion.fromObj
-import top.anagke.kwormhole.store.MetadataEntity.Companion.toObj
-import top.anagke.kwormhole.util.sameTo
+import top.anagke.kwormhole.DiskFileContent
+import top.anagke.kwormhole.FileContent
+import top.anagke.kwormhole.FileRecord
+import top.anagke.kwormhole.store.FileRecordEntity.Companion.fromObj
+import top.anagke.kwormhole.store.FileRecordEntity.Companion.toObj
+import top.anagke.kwormhole.util.matches
 import java.io.Closeable
 import java.io.File
 
@@ -16,102 +18,101 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
 
     private val databaseFile: File = storeRoot.resolve(".store.db")
 
-    private val databaseCP = run {
+    private val databaseConnectionPool = run {
         val config = HikariConfig()
         config.jdbcUrl = "jdbc:sqlite:${databaseFile}"
         config.driverClassName = "org.sqlite.JDBC"
         HikariDataSource(config)
     }
 
-    private val database get() = Database.connect(databaseCP)
+    private val database get() = Database.connect(databaseConnectionPool)
 
 
     init {
         transaction(database) {
-            SchemaUtils.create(MetadataTable)
+            SchemaUtils.create(FileRecordTable)
         }
     }
 
 
     @Synchronized
     fun index() {
-        val indexTime = utcEpochMillis
-        val thisMet = storeRoot.walk()
-            .filterNot { it sameTo databaseFile }
+        val newRecords = storeRoot.walk()
             .filter { it.isFile }
-            .map { relative(it) to Metadata(relative(it), FileContent(it).hash(), utcEpochMillis) }
-            .toMap()
-        val prevMet = list().asSequence()
-            .map { it.path to it }
-            .toMap()
-        (thisMet.keys + prevMet.keys).asSequence()
-            .filter {
-                thisMet[it]?.hash != prevMet[it]?.hash
-            }
-            .forEach {
-                transaction(database) {
-                    val entity = MetadataEntity.findById(it) ?: MetadataEntity.new(it) {}
-                    //However the file is changed, update time field.
-                    entity.time = indexTime
-                    if (it in thisMet) {
-                        //It still exists
-                        entity.hash = thisMet[it]!!.hash!!
-                        entity.hashNull = false
-                    } else {
-                        //It doesn't exists anymore, set its length to -1.
-                        entity.hashNull = true
-                    }
+            .filterNot { it.matches(databaseFile) }
+            .map { FileRecord.byFile(storeRoot, it) }
+        newRecords.forEach { newRecord ->
+            if (this.contains(newRecord.path)) {
+                val oldRecord = this.getRecord(newRecord.path)
+                if (newRecord.hash != oldRecord.hash) {
+                    this.patch(newRecord)
                 }
-            }
-    }
-
-
-    @Synchronized
-    override fun list(): List<Metadata> {
-        return transaction(database) {
-            MetadataEntity.all().map { it.toObj() }.toList()
-        }
-    }
-
-    @Synchronized
-    override fun getMetadata(path: String): Metadata {
-        return transaction(database) {
-            MetadataEntity[path].toObj()
-        }
-    }
-
-    @Synchronized
-    override fun getContent(path: String): Content {
-        return FileContent(resolve(path))
-    }
-
-    @Synchronized
-    override fun exists(path: String): Boolean {
-        return transaction(database) {
-            MetadataEntity.findById(path) != null
-        }
-    }
-
-    @Synchronized
-    override fun store(metadata: Metadata, content: Content) {
-        val path = metadata.path
-        transaction(database) {
-            if (MetadataEntity.findById(path) == null) {
-                MetadataEntity.new(path) { fromObj(metadata) }
             } else {
-                MetadataEntity[path].fromObj(metadata)
+                this.store(newRecord, DiskFileContent(storeRoot.resolve(newRecord.path)))
             }
         }
-        resolve(path).parentFile.mkdirs()
-        resolve(path).writeBytes(content.bytes())
+    }
+
+
+    @Synchronized
+    override fun listAll(): List<FileRecord> {
+        return transaction(database) {
+            FileRecordEntity.all().map { it.toObj() }.toList()
+        }
     }
 
     @Synchronized
-    override fun delete(metadata: Metadata) {
-        transaction(database) {
-            MetadataEntity[metadata.path].delete()
+    override fun getRecord(path: String): FileRecord {
+        return transaction(database) {
+            FileRecordEntity[path].toObj()
         }
-        resolve(metadata.path).delete()
+    }
+
+    @Synchronized
+    override fun getContent(path: String): FileContent {
+        return DiskFileContent(resolve(path))
+    }
+
+    @Synchronized
+    override fun contains(path: String): Boolean {
+        return transaction(database) {
+            FileRecordEntity.findById(path) != null
+        }
+    }
+
+    @Synchronized
+    override fun store(record: FileRecord, content: FileContent) {
+        transaction(database) {
+            if (FileRecordEntity.findById(record.path) == null) {
+                FileRecordEntity.new(record.path) { fromObj(record) }
+            } else {
+                FileRecordEntity[record.path].fromObj(record)
+            }
+        }
+        if (content is DiskFileContent && content.file == resolve(record.path)) {
+            return
+        }
+        resolve(record.path).parentFile.mkdirs()
+        content.openStream().use { input ->
+            resolve(record.path).outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+    }
+
+    @Synchronized
+    fun patch(record: FileRecord) {
+        transaction(database) {
+            FileRecordEntity[record.path].fromObj(record)
+        }
+    }
+
+    @Synchronized
+    override fun delete(path: String) {
+        transaction(database) {
+            FileRecordEntity[path].delete()
+        }
+        resolve(path).delete()
     }
 
 
@@ -126,7 +127,7 @@ class LocalStore(private val storeRoot: File) : Store, Closeable {
 
     @Synchronized
     override fun close() {
-        databaseCP.close()
+        databaseConnectionPool.close()
     }
 
 }

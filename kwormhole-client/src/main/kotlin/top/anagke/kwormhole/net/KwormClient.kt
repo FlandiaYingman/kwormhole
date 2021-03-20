@@ -18,7 +18,8 @@ import io.ktor.http.content.PartData
 import io.ktor.utils.io.core.copyTo
 import io.ktor.utils.io.streams.asInput
 import io.ktor.utils.io.streams.asOutput
-import top.anagke.kwormhole.store.Metadata
+import top.anagke.kwormhole.FileContent
+import top.anagke.kwormhole.FileRecord
 import top.anagke.kwormhole.util.fromJson
 import java.io.File
 
@@ -30,23 +31,23 @@ class KwormClient(
     }
 ) {
 
-    suspend fun listFiles(): List<Metadata> {
+    suspend fun listFiles(): List<FileRecord> {
         return httpClient.get(host = host, port = port, path = "/")
     }
 
-    suspend fun peekFile(path: String): Metadata? {
+    suspend fun peekFile(path: String): FileRecord? {
         return httpClient.get(host = host, port = port, path = path) {
             parameter("peek", "")
         }
     }
 
-    suspend fun downloadFile(path: String, file: File): Metadata {
+    suspend fun downloadFile(path: String, file: File): FileRecord {
         val response = httpClient.get<HttpResponse>(host = host, port = port, path = path)
         val parts = response.receive<MultiPartData>()
         val metadataPart = (parts.readPart() ?: throw RuntimeException("Server error")) as PartData.FormItem
         val contentPart = (parts.readPart() ?: throw RuntimeException("Server error")) as PartData.FileItem
 
-        val metadata = Gson().fromJson<Metadata>(metadataPart.value)!!
+        val metadata = Gson().fromJson<FileRecord>(metadataPart.value)!!
         contentPart.provider().use { input ->
             file.outputStream().asOutput().use { output ->
                 input.copyTo(output)
@@ -55,17 +56,19 @@ class KwormClient(
         return metadata
     }
 
-    suspend fun uploadFile(metadata: Metadata, file: File) {
+    suspend fun uploadFile(metadata: FileRecord, content: FileContent) {
         httpClient.post<Unit>(host = host, port = port, path = metadata.path) {
             body = MultiPartFormDataContent(
                 formData {
                     this.append("metadata", Gson().toJson(metadata))
-                    if (metadata.hash != null) {
-                        this.append("content", InputProvider(file.length()) { file.inputStream().asInput() })
-                    }
+                    this.append("content", InputProvider(file.length()) { file.inputStream().asInput() })
                 }
             )
         }
+    }
+
+    suspend fun deleteFile(path: String) {
+        TODO()
     }
 
 }

@@ -1,6 +1,5 @@
 package top.anagke.kwormhole.sync
 
-import top.anagke.kwormhole.store.Metadata
 import top.anagke.kwormhole.store.Metadata.Companion.isDeleted
 import top.anagke.kwormhole.store.Metadata.Companion.isNewerThan
 import top.anagke.kwormhole.store.Metadata.Companion.isOlderThan
@@ -12,8 +11,8 @@ class KwormSync(
 ) {
 
     fun sync() {
-        val localFiles = localStore.list().associateBy { it.path }.toMutableMap()
-        val remoteFiles = remoteStore.list().associateBy { it.path }.toMutableMap()
+        val localFiles = localStore.listAll().associateBy { it.path }.toMutableMap()
+        val remoteFiles = remoteStore.listAll().associateBy { it.path }.toMutableMap()
         val localPatches = mutableListOf<Metadata>()
         val remotePatches = mutableListOf<Metadata>()
         for (key in (localFiles.keys + remoteFiles.keys)) {

@@ -2,6 +2,6 @@ package top.anagke.kwormhole.util
 
 import java.io.File
 
-infix fun File.sameTo(file: File): Boolean {
+infix fun File.matches(file: File): Boolean {
     return this.canonicalPath == file.canonicalPath
 }

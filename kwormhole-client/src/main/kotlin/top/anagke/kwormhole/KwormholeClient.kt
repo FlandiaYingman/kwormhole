@@ -14,7 +14,7 @@ fun main(argv: Array<String>) {
     val sync = KwormSync(localStore, remoteStore)
     while (!Thread.interrupted()) {
         localStore.index()
-        for (m in localStore.list()) {
+        for (m in localStore.listAll()) {
             println("Indexed: $m")
         }
 

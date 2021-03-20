@@ -1,20 +1,24 @@
 package top.anagke.kwormhole.store
 
+import top.anagke.kwormhole.FileContent
+import top.anagke.kwormhole.FileRecord
+
 interface Store {
 
-    fun list(): List<Metadata>
+    fun listAll(): List<FileRecord>
 
 
-    fun getMetadata(path: String): Metadata
+    fun getRecord(path: String): FileRecord
 
-    fun getContent(path: String): Content
+    fun getContent(path: String): FileContent
 
-    fun exists(path: String): Boolean
+    fun contains(path: String): Boolean
 
 
-    fun store(metadata: Metadata, content: Content)
+    fun store(metadata: FileRecord, content: FileContent)
 
-    fun delete(metadata: Metadata)
+
+    fun delete(path: String)
 
 
     fun apply(patch: Metadata, store: Store) {
