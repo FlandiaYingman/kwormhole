@@ -30,6 +30,7 @@ dependencies {
     runtimeOnly("org.jetbrains.exposed:exposed-jdbc:0.29.1")
     implementation("com.zaxxer:HikariCP:4.0.1")
     implementation("org.xerial:sqlite-jdbc:3.34.0")
+    implementation("org.greenrobot:eventbus:3.2.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
 }
