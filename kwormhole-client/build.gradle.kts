@@ -14,6 +14,7 @@ dependencies {
 
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.github.microutils:kotlin-logging:2.0.4")
+    implementation("ch.qos.logback:logback-classic:1.3.0-alpha5")
 
     implementation("no.tornado:tornadofx:1.7.20")
     implementation("io.ktor:ktor-client-core:1.5.1")
