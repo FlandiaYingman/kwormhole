@@ -7,6 +7,7 @@ import top.anagke.kwormhole.FileRecord
 import java.io.Closeable
 import java.io.File
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -69,7 +70,7 @@ class LocalModel(
     }
 
     val records: Map<String, FileRecord> by lazy { recordsMutable }
-    private val recordsMutable: MutableMap<String, FileRecord> by lazy { HashMap() }
+    private val recordsMutable: MutableMap<String, FileRecord> by lazy { ConcurrentHashMap() }
 
     val changes: BlockingQueue<FileRecord> = LinkedBlockingQueue()
 
