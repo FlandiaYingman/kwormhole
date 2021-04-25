@@ -5,19 +5,18 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import top.anagke.kwormhole.FileRecord
 import top.anagke.kwormhole.TEST_DIR
+import top.anagke.kwormhole.TEST_UNIT_NUM
+import top.anagke.kwormhole.nextHexString
 import top.anagke.kwormhole.useDir
 import java.io.File
 import java.util.concurrent.TimeUnit.MILLISECONDS
+import kotlin.random.Random
 
 internal class LocalModelTest {
 
     @Test
     fun testInitUpdate() {
-        val testFiles = listOf(
-            TEST_DIR.resolve("foo.file.init"),
-            TEST_DIR.resolve("bar.file.init"),
-            TEST_DIR.resolve("foo_bar.file.init"),
-        )
+        val testFiles = List(TEST_UNIT_NUM) { TEST_DIR.resolve(Random.nextHexString(4).let { "$it.test" }) }
         TEST_DIR.useDir {
             testFiles.forEach(File::createNewFile)
             val testPaths = testFiles.map { FileRecord.byFile(TEST_DIR, it).path }.toMutableList()
@@ -33,11 +32,7 @@ internal class LocalModelTest {
 
     @Test
     fun testMonitorUpdate() {
-        val testFiles = listOf(
-            TEST_DIR.resolve("foo.file.update"),
-            TEST_DIR.resolve("bar.file.update"),
-            TEST_DIR.resolve("foo_bar.file.update"),
-        )
+        val testFiles = List(TEST_UNIT_NUM) { TEST_DIR.resolve(Random.nextHexString(4).let { "$it.test" }) }
         TEST_DIR.useDir {
             val testPaths = testFiles.map { FileRecord.byFile(TEST_DIR, it).path }.toMutableList()
             LocalModel.newLocalModel(TEST_DIR).use { model ->
