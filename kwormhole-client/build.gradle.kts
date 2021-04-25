@@ -17,14 +17,20 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.3.0-alpha5")
 
     implementation("no.tornado:tornadofx:1.7.20")
-    implementation("io.ktor:ktor-client-core:1.5.1")
-    implementation("io.ktor:ktor-client-cio:1.5.1")
-    implementation("io.ktor:ktor-client-json:1.5.1")
-    implementation("io.ktor:ktor-client-gson:1.5.1")
-    implementation("io.ktor:ktor-client-mock:1.5.1")
-    implementation("io.ktor:ktor-server-core:1.5.1")
-    implementation("io.ktor:ktor-server-cio:1.5.1")
-    implementation("io.ktor:ktor-gson:1.5.1")
+
+    val ktorVersion = "1.5.1"
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
+    implementation("io.ktor:ktor-client-json:$ktorVersion")
+    implementation("io.ktor:ktor-client-gson:$ktorVersion")
+    implementation("io.ktor:ktor-client-mock:$ktorVersion")
+    implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-cio:$ktorVersion")
+
+    implementation("io.ktor:ktor-gson:$ktorVersion")
+    implementation("io.ktor:ktor-websockets:$ktorVersion")
 
     implementation("org.jetbrains.exposed:exposed-core:0.29.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.29.1")

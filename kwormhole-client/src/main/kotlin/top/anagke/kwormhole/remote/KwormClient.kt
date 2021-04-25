@@ -1,6 +1,6 @@
 @file:Suppress("EXPERIMENTAL_API_USAGE")
 
-package top.anagke.kwormhole.net
+package top.anagke.kwormhole.remote
 
 import com.google.gson.Gson
 import io.ktor.client.HttpClient
@@ -28,7 +28,7 @@ class KwormClient(
     private val port: Int,
     private val httpClient: HttpClient = HttpClient {
         install(JsonFeature)
-    }
+    },
 ) {
 
     suspend fun listFiles(): List<FileRecord> {
@@ -61,7 +61,7 @@ class KwormClient(
             body = MultiPartFormDataContent(
                 formData {
                     this.append("metadata", Gson().toJson(metadata))
-                    this.append("content", InputProvider(file.length()) { file.inputStream().asInput() })
+                    this.append("content", InputProvider(content.length()) { content.openStream().asInput() })
                 }
             )
         }
