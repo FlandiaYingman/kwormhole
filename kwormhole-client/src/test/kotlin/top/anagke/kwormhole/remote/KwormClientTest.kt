@@ -18,17 +18,20 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
-import top.anagke.kwormhole.Json
 import top.anagke.kwormhole.MemoryFileContent
-import top.anagke.kwormhole.TEST_DATA_LENGTH
-import top.anagke.kwormhole.TEST_SERVER_PORT
-import top.anagke.kwormhole.TEST_UNIT_TIMES
 import top.anagke.kwormhole.asBytes
-import top.anagke.kwormhole.nextFilePath
-import top.anagke.kwormhole.nextFileRC
-import top.anagke.kwormhole.randomFileRecord
-import top.anagke.kwormhole.testServer
-import top.anagke.kwormhole.use
+import top.anagke.kwormhole.test.TEST_ENTRY_COUNT
+import top.anagke.kwormhole.test.TEST_ENTRY_LENGTH
+import top.anagke.kwormhole.test.TEST_FILE_NAME_LENGTH
+import top.anagke.kwormhole.test.TEST_FILE_PATH_DEPTH
+import top.anagke.kwormhole.test.TEST_SERVER_PORT
+import top.anagke.kwormhole.test.fromJson
+import top.anagke.kwormhole.test.nextFilePath
+import top.anagke.kwormhole.test.nextFileRC
+import top.anagke.kwormhole.test.nextFileRecord
+import top.anagke.kwormhole.test.testServer
+import top.anagke.kwormhole.test.toJson
+import top.anagke.kwormhole.test.use
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
@@ -37,12 +40,12 @@ internal class KwormClientTest {
 
     @Test
     fun listFiles() {
-        val expectedRecords = List(TEST_UNIT_TIMES) { randomFileRecord() }
+        val expectedRecords = List(TEST_ENTRY_COUNT) { Random.nextFileRecord() }
         testServer {
             routing {
                 route("/") {
                     handle {
-                        call.respondText(Json.toJson(expectedRecords), ContentType.Application.Json)
+                        call.respondText(toJson(expectedRecords), ContentType.Application.Json)
                     }
                 }
             }
@@ -55,14 +58,14 @@ internal class KwormClientTest {
 
     @Test
     fun downloadRecord() {
-        val testRecord = randomFileRecord()
+        val testRecord = Random.nextFileRecord()
         val testPath = testRecord.path
         testServer {
             routing {
                 route(testPath) {
                     param("type", "record") {
                         handle {
-                            call.respondText(Json.toJson(testRecord), ContentType.Application.Json)
+                            call.respondText(toJson(testRecord), ContentType.Application.Json)
                         }
                     }
                 }
@@ -76,8 +79,8 @@ internal class KwormClientTest {
 
     @Test
     fun downloadContent() {
-        val testPath = Random.nextFilePath()
-        val testBytes = Random.nextBytes(TEST_DATA_LENGTH)
+        val testPath = Random.nextFilePath(TEST_FILE_PATH_DEPTH, TEST_FILE_NAME_LENGTH)
+        val testBytes = Random.nextBytes(TEST_ENTRY_LENGTH)
         testServer {
             routing {
                 route(testPath) {
@@ -108,7 +111,7 @@ internal class KwormClientTest {
                         val recordPart = multipart.readPart() as FormItem
                         val contentPart = multipart.readPart() as PartData.FileItem
 
-                        atomicActualRecord.set(Json.fromJson(recordPart.value))
+                        atomicActualRecord.set(fromJson(recordPart.value))
                         atomicActualContent.set(MemoryFileContent(contentPart.provider().use { it.readBytes() }))
 
                         latch.countDown()

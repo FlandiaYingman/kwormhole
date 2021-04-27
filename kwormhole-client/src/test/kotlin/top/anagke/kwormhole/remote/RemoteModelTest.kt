@@ -12,16 +12,18 @@ import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import top.anagke.kwormhole.FileRecord
-import top.anagke.kwormhole.TEST_UNIT_NUM
-import top.anagke.kwormhole.randomFileRecord
+import top.anagke.kwormhole.test.TEST_ENTRY_COUNT
+import top.anagke.kwormhole.test.nextFileRecord
+import top.anagke.kwormhole.test.toJson
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 internal class RemoteModelTest {
 
     @Test
     fun testRetrieveAll() {
-        val testRecords = List(TEST_UNIT_NUM) { randomFileRecord() }
+        val testRecords = List(TEST_ENTRY_COUNT) { Random.nextFileRecord() }
         val server = embeddedServer(CIO, port = 8080) {
             install(WebSockets)
             routing {
@@ -53,16 +55,16 @@ internal class RemoteModelTest {
 
     @Test
     fun testRetrieveChange() {
-        val testRecords = List(TEST_UNIT_NUM) { randomFileRecord() }
+        val testRecords = List(TEST_ENTRY_COUNT) { Random.nextFileRecord() }
         val server = embeddedServer(CIO, port = 8080) {
             install(WebSockets)
             routing {
                 webSocket("/ws/all") {
-                    send(Gson().toJson(emptyList<FileRecord>()))
+                    send(toJson(emptyList<FileRecord>()))
                 }
                 webSocket("/ws/change") {
                     testRecords.forEach {
-                        send(Gson().toJson(it))
+                        send(toJson(it))
                     }
                     delay(10000)
                 }
