@@ -13,14 +13,18 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
-import io.ktor.http.content.MultiPartData
-import io.ktor.http.content.PartData
-import io.ktor.utils.io.core.copyTo
+import io.ktor.client.statement.HttpStatement
+import io.ktor.http.HttpHeaders.ContentDisposition
+import io.ktor.http.headersOf
+import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.copyAndClose
 import io.ktor.utils.io.streams.asInput
-import io.ktor.utils.io.streams.asOutput
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import top.anagke.kwormhole.DiskFileContent
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
-import top.anagke.kwormhole.util.fromJson
 import java.io.File
 
 class KwormClient(
@@ -35,40 +39,54 @@ class KwormClient(
         return httpClient.get(host = host, port = port, path = "/")
     }
 
-    suspend fun peekFile(path: String): FileRecord? {
+    /**
+     * Downloads the corresponding record of a specified path.
+     * @param path the specified path
+     * @return the record object, or `null` if the record doesn't exist
+     */
+    suspend fun downloadRecord(path: String): FileRecord? {
         return httpClient.get(host = host, port = port, path = path) {
-            parameter("peek", "")
+            parameter("type", "record")
         }
     }
 
-    suspend fun downloadFile(path: String, file: File): FileRecord {
-        val response = httpClient.get<HttpResponse>(host = host, port = port, path = path)
-        val parts = response.receive<MultiPartData>()
-        val metadataPart = (parts.readPart() ?: throw RuntimeException("Server error")) as PartData.FormItem
-        val contentPart = (parts.readPart() ?: throw RuntimeException("Server error")) as PartData.FileItem
-
-        val metadata = Gson().fromJson<FileRecord>(metadataPart.value)!!
-        contentPart.provider().use { input ->
-            file.outputStream().asOutput().use { output ->
-                input.copyTo(output)
+    /**
+     * Downloads the corresponding content of a specified path.
+     * @param path the specified path
+     * @return the content object, or `null` if the record doesn't exist
+     */
+    suspend fun downloadContent(path: String): FileContent {
+        val temp = withContext(Dispatchers.IO) {
+            @Suppress("BlockingMethodInNonBlockingContext")
+            File.createTempFile("kwormhole", null).also { it.deleteOnExit() }
+        }
+        httpClient.get<HttpStatement>(host = host, port = port, path = path) {
+            parameter("type", "content")
+        }.execute { response: HttpResponse ->
+            val channel = response.receive<ByteReadChannel>()
+            withContext(Dispatchers.IO) {
+                channel.copyAndClose(temp.writeChannel(coroutineContext))
             }
         }
-        return metadata
+        return DiskFileContent(temp)
     }
 
-    suspend fun uploadFile(metadata: FileRecord, content: FileContent) {
-        httpClient.post<Unit>(host = host, port = port, path = metadata.path) {
-            body = MultiPartFormDataContent(
-                formData {
-                    this.append("metadata", Gson().toJson(metadata))
-                    this.append("content", InputProvider(content.length()) { content.openStream().asInput() })
-                }
+
+    suspend fun uploadFile(record: FileRecord, content: FileContent) {
+        val parts = formData {
+            this.append(
+                "record",
+                Gson().toJson(record)
+            )
+            this.append(
+                "content",
+                InputProvider(content.length()) { content.openStream().asInput() },
+                headersOf(ContentDisposition, "filename=")
             )
         }
-    }
-
-    suspend fun deleteFile(path: String) {
-        TODO()
+        httpClient.post<Unit>(host = host, port = port, path = record.path) {
+            body = MultiPartFormDataContent(parts)
+        }
     }
 
 }

@@ -31,6 +31,9 @@ data class FileRecord(
                 FileRecord(relativeFileString, -1, utcEpochMillis, 0)
             }
         }
+        fun resolve(root: File, record: FileRecord): File {
+            return root.resolve(record.path.removePrefix("/"))
+        }
     }
 
      fun sameTo(other: FileRecord?): Boolean {
