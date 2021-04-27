@@ -1,6 +1,6 @@
 package top.anagke.kwormhole
 
-import top.anagke.kwormhole.sync.Synchronizer.utcEpochMillis
+import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
 
