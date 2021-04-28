@@ -7,8 +7,8 @@ import java.io.InputStream
 class DiskFileContent(val file: File) : FileContent {
 
     init {
-        require(file.exists()) { "The file $file is required to exist." }
-        require(file.isFile) { "The file $file is required to be file." }
+        //require(file.exists()) { "The file $file is required to exist." }
+        //require(file.isFile) { "The file $file is required to be file." }
     }
 
     override fun hash(): Long {

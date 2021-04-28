@@ -6,6 +6,7 @@ import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.TEST_FILE_NAME_LENGTH
 import top.anagke.kwormhole.test.nextFileRC
+import top.anagke.kwormhole.test.nextFileRecord
 import top.anagke.kwormhole.test.nextHexString
 import top.anagke.kwormhole.test.tryPoll
 import top.anagke.kwormhole.test.useDir
@@ -66,6 +67,33 @@ internal class LocalModelTest {
             Assertions.assertNotNull(actualContent)
             Assertions.assertArrayEquals(testContent.asBytes(), actualContent!!().asBytes())
             Assertions.assertEquals(1, model.contents.size)
+        }
+    }
+
+    @Test
+    fun testDb() = TEST_DIR.useDir {
+        val testDbFile = TEST_DIR.resolve("model.db")
+        val testSyncDir = TEST_DIR.resolve("sync").also { it.mkdirs() }
+
+        val testInitRecord = Random.nextFileRecord()
+        val testChangeFile = testSyncDir.resolve(Random.nextHexString(TEST_FILE_NAME_LENGTH))
+        val (testPutRecord, testPutContent) = Random.nextFileRC()
+        val database = RecordDatabase(testDbFile)
+        database.put(listOf(testInitRecord))
+
+        LocalModel(testSyncDir, database).use { model ->
+            val expectedInitPath = testInitRecord.path
+            Assertions.assertEquals(expectedInitPath, model.changes.tryPoll())
+            Assertions.assertEquals(testInitRecord, model.records[expectedInitPath])
+            Assertions.assertNotNull(model.contents[expectedInitPath])
+
+            val expectedChangePath = toRecordPath(testSyncDir, testChangeFile)
+            testChangeFile.createNewFile()
+            Assertions.assertEquals(expectedChangePath, model.changes.tryPoll())
+            Assertions.assertNotNull(database.all().singleOrNull { expectedChangePath == it.path })
+
+            model.put(testPutRecord, testPutContent)
+            Assertions.assertTrue(testPutRecord in database.all())
         }
     }
 

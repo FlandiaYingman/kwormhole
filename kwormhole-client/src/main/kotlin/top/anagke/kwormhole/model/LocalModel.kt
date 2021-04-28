@@ -1,9 +1,21 @@
 package top.anagke.kwormhole.model
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
+import org.jetbrains.exposed.dao.Entity
+import org.jetbrains.exposed.dao.EntityClass
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.dao.id.IdTable
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.transactions.transaction
 import top.anagke.kwormhole.DiskFileContent
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
+import top.anagke.kwormhole.model.RecordEntity.Companion.fromObj
+import top.anagke.kwormhole.model.RecordEntity.Companion.toObj
 import top.anagke.kwormhole.shouldReplace
 import top.anagke.kwormhole.toRealPath
 import top.anagke.kwormhole.writeToFile
@@ -21,8 +33,10 @@ import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
+
 class LocalModel(
     private val localDir: File,
+    private val database: RecordDatabase? = null,
 ) : Model {
 
     private val logger = KotlinLogging.logger { }
@@ -50,8 +64,13 @@ class LocalModel(
     }
 
     private fun initChanges() {
-        val allFiles = localDir.walk().filter { it != localDir }.toList()
-        allFiles.forEach(this::submitFileChange)
+        val recordsDb = database?.all()
+        recordsDb?.forEach { record ->
+            submitChange(record, DiskFileContent(toRealPath(localDir, record.path)), fromDb = true)
+        }
+
+        val recordsDisk = localDir.walk().filter { it != localDir }.toList()
+        recordsDisk.forEach(this::submitFileChange)
     }
 
     private fun monitorChanges(monitor: FileSystemMonitor) {
@@ -78,11 +97,17 @@ class LocalModel(
         submitChange(record, content)
     }
 
-    private fun submitChange(record: FileRecord, content: FileContent, manual: Boolean = false) {
+    private fun submitChange(
+        record: FileRecord,
+        content: FileContent,
+        manual: Boolean = false,
+        fromDb: Boolean = false,
+    ) {
         val existingRecord = records[record.path]
         if (record.shouldReplace(existingRecord)) {
             recordsMutable[record.path] = record
             contentsMutable[record.path] = { content }
+            if (!fromDb) database?.put(listOf(record))
             if (manual) {
                 logger.info { "Submit manual change: $record" }
             } else {
@@ -104,6 +129,7 @@ class LocalModel(
 
     override fun close() {
         runner.interrupt()
+        database?.close()
     }
 
     override fun toString(): String {
@@ -112,7 +138,8 @@ class LocalModel(
 
 }
 
-class FileSystemMonitor(
+
+private class FileSystemMonitor(
     directories: List<File>,
 ) : Closeable {
 
@@ -148,7 +175,7 @@ class FileSystemMonitor(
 
 }
 
-data class FileChangeEvent(
+private data class FileChangeEvent(
     val file: File,
     val change: Type,
 ) {
@@ -173,5 +200,82 @@ data class FileChangeEvent(
         }
 
     }
+
+}
+
+
+class RecordDatabase(
+    private val dbFile: File,
+) : Closeable {
+
+    private val dbPool = run {
+        val config = HikariConfig()
+        config.jdbcUrl = "jdbc:sqlite:${dbFile.canonicalPath}"
+        config.driverClassName = "org.sqlite.JDBC"
+        config.maximumPoolSize = 1
+        HikariDataSource(config)
+    }
+
+    private fun openDb() = Database.connect(dbPool)
+
+    init {
+        transaction(openDb()) {
+            SchemaUtils.create(RecordTable)
+        }
+    }
+
+    fun all(): List<FileRecord> {
+        return transaction(openDb()) {
+            RecordEntity.all().map { it.toObj() }.toList()
+        }
+    }
+
+    fun put(records: Collection<FileRecord>) {
+        transaction(openDb()) {
+            for (record in records) {
+                val recordEntity = RecordEntity.findById(record.path)
+                if (recordEntity == null) {
+                    RecordEntity.new(record.path) { this.fromObj(record) }
+                } else {
+                    recordEntity.fromObj(record)
+                }
+            }
+        }
+    }
+
+    override fun close() {
+        dbPool.close()
+    }
+
+}
+
+object RecordTable : IdTable<String>("file_record") {
+    override val id: Column<EntityID<String>> = varchar("path", 1024).uniqueIndex().entityId()
+    override val primaryKey by lazy { super.primaryKey ?: PrimaryKey(id) }
+    val size = long("size")
+    val time = long("time")
+    val hash = long("hash")
+}
+
+class RecordEntity(id: EntityID<String>) : Entity<String>(id) {
+
+    companion object : EntityClass<String, RecordEntity>(RecordTable) {
+        fun RecordEntity.fromObj(record: FileRecord) {
+            require(this.path == record.path) { "The path ${this.path} and ${record.path} are required to be same." }
+            size = record.size
+            time = record.time
+            hash = record.hash
+        }
+
+        fun RecordEntity.toObj(): FileRecord {
+            return FileRecord(path, size, time, hash)
+        }
+
+    }
+
+    val path = this.id.value
+    var size by RecordTable.size
+    var time by RecordTable.time
+    var hash by RecordTable.hash
 
 }
