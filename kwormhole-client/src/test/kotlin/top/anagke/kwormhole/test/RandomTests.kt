@@ -3,7 +3,7 @@ package top.anagke.kwormhole.test
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
 import top.anagke.kwormhole.MemoryFileContent
-import top.anagke.kwormhole.sync.Synchronizer.utcEpochMillis
+import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.util.Hasher
 import java.math.BigInteger
 import kotlin.random.Random

@@ -1,4 +1,4 @@
-package top.anagke.kwormhole.remote
+package top.anagke.kwormhole.model
 
 import io.ktor.application.call
 import io.ktor.http.ContentType

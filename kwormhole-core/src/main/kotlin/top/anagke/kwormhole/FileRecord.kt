@@ -20,30 +20,41 @@ data class FileRecord(
     val hash: Long,
 ) {
     companion object {
-        fun byFile(root: File, file: File): FileRecord {
-            val canonicalRoot = root.canonicalFile
-            val canonicalFile = file.canonicalFile
-            require(canonicalFile.startsWith(canonicalRoot)) { "The file $file is required to belong to $root" }
-            val relativeFileString = "/${canonicalFile.toRelativeString(canonicalRoot).replace('\\', '/')}"
-            return if (canonicalFile.exists()) {
-                FileRecord(relativeFileString, canonicalFile.length(), utcEpochMillis, Hasher.hash(canonicalFile))
+        fun record(root: File, file: File): FileRecord {
+            val recordPath = toRecordPath(root, file)
+            return if (file.exists()) {
+                FileRecord(recordPath, file.length(), utcEpochMillis, Hasher.hash(file))
             } else {
-                FileRecord(relativeFileString, -1, utcEpochMillis, 0)
+                FileRecord(recordPath, -1, utcEpochMillis, 0)
             }
         }
-        fun resolve(root: File, record: FileRecord): File {
-            return root.resolve(record.path.removePrefix("/"))
-        }
     }
+}
 
-     fun sameTo(other: FileRecord?): Boolean {
-        return other != null &&
-                this.path == other.path &&
-                this.size == other.size &&
-                this.hash == other.hash
-    }
+fun toRecordPath(root: File, file: File): String {
+    val canonicalRoot = root.canonicalFile
+    val canonicalFile = file.canonicalFile
+    require(canonicalFile.startsWith(canonicalRoot)) { "The file $file is required to belong to $root" }
+    return "/${canonicalFile.toRelativeString(canonicalRoot).replace(File.separatorChar, '/')}"
+}
 
-     fun differTo(other: FileRecord?): Boolean {
-        return !this.sameTo(other)
+fun toRealPath(root: File, path: String): File {
+    return root.resolve(path.removePrefix("/").replace('/', File.separatorChar))
+}
+
+fun FileRecord.shouldReplace(other: FileRecord?): Boolean {
+    return when {
+        // If the other record is null,
+        // we should replace it.
+        other == null -> true
+
+        // Otherwise, if this record is newer than the other,
+        // and this record's content differs from the other's
+        // we should replace it.
+        (this.time > other.time) &&
+        (this.size != other.size || this.hash != other.hash) -> true
+
+        // Otherwise, we shouldn't replace it.
+        else -> false
     }
 }
