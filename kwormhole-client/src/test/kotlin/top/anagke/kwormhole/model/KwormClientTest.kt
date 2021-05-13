@@ -120,7 +120,7 @@ internal class KwormClientTest {
                 }
             }
         }.use {
-            val client = KwormClient("localhost", TEST_SERVER_PORT)
+            val client = KwormClient("localhost", 8080)
             runBlocking { client.uploadFile(expectedRecord, expectedContent) }
             latch.await()
 

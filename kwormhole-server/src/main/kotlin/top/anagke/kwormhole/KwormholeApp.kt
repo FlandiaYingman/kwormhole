@@ -13,4 +13,7 @@ class KwormholeApp {
         }
     }
 
+
+    private val log = mu.KotlinLogging.logger {}
+
 }
