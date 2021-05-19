@@ -44,8 +44,8 @@ Requests all existing KFR's path.
 
 The response body is a list containing all existing KFR's path.
 
-### `SSE /event`
+### `WebSocket /event`
 
 Listens for KFR changes.
 
-Each event has a `data` line of the changed KFR's path.
+Each packet contains the changed KFR's path.
