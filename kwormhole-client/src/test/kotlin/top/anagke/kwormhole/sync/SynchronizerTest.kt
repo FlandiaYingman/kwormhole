@@ -2,17 +2,14 @@ package top.anagke.kwormhole.sync
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.asBytes
-import top.anagke.kwormhole.test.TEST_ENTRY_COUNT
-import top.anagke.kwormhole.test.nextFileRC
-import top.anagke.kwormhole.test.tryPoll
-import kotlin.random.Random
 
 internal class SynchronizerTest {
 
     @Test
     fun test() {
-        val testRCs = List(TEST_ENTRY_COUNT) { Random.nextFileRC() }.associateBy { it.first.path }
+        val testRCs = List(10) { MockKfr.mockBoth() }.associateBy { it.first.path }
         val expected = testRCs.keys.toMutableList()
 
         val srcModel = SimpleModel("src", testRCs.values.toList())
@@ -20,7 +17,7 @@ internal class SynchronizerTest {
 
         Synchronizer(srcModel, dstModel).use { _ ->
             repeat(expected.size) { _ ->
-                val dstChange = dstModel.changes.tryPoll()
+                val dstChange = dstModel.changes.take()
                 Assertions.assertNotNull(dstChange)
                 val dstChangeRecord = dstModel.records[dstChange]
                 val dstChangeContent = dstModel.contents[dstChange]

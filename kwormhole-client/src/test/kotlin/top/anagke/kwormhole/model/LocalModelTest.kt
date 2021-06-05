@@ -1,99 +1,83 @@
 package top.anagke.kwormhole.model
 
-import org.junit.jupiter.api.Assertions
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.notNullValue
+import org.hamcrest.MatcherAssert.assertThat
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
-import top.anagke.kwormhole.test.TEST_FILE_NAME_LENGTH
-import top.anagke.kwormhole.test.nextFileRC
-import top.anagke.kwormhole.test.nextFileRecord
-import top.anagke.kwormhole.test.nextHexString
-import top.anagke.kwormhole.test.tryPoll
 import top.anagke.kwormhole.test.useDir
+import top.anagke.kwormhole.toRealPath
 import top.anagke.kwormhole.toRecordPath
-import kotlin.random.Random
 
 internal class LocalModelTest {
 
     @Test
-    fun testInitChanges() = TEST_DIR.useDir {
-        val testFile = TEST_DIR.resolve(Random.nextHexString(TEST_FILE_NAME_LENGTH))
-
-        testFile.createNewFile()
-        LocalModel(TEST_DIR).use { model ->
-            val expectedPath = toRecordPath(TEST_DIR, testFile)
-            Assertions.assertEquals(expectedPath, model.changes.tryPoll())
-            Assertions.assertNotNull(model.records[expectedPath])
-            Assertions.assertNotNull(model.contents[expectedPath])
+    fun testInitFilesystem() {
+        TEST_DIR.useDir {
+            val testFile = MockKfr.mockFile(TEST_DIR)
+            LocalModel(TEST_DIR).use { model ->
+                val expectedPath = toRecordPath(TEST_DIR, testFile)
+                val actualPath = model.changes.take()
+                assertThat(actualPath, equalTo(expectedPath))
+            }
         }
     }
 
     @Test
-    fun testMonitorChanges() = TEST_DIR.useDir {
-        val dummyFile = TEST_DIR.resolve(Random.nextHexString(TEST_FILE_NAME_LENGTH))
-        val testFile = TEST_DIR.resolve(Random.nextHexString(TEST_FILE_NAME_LENGTH))
-
-        dummyFile.createNewFile()
-        LocalModel(TEST_DIR).use { model ->
-            val expectedDummyPath = toRecordPath(TEST_DIR, dummyFile)
-            Assertions.assertEquals(expectedDummyPath, model.changes.tryPoll())
-            Assertions.assertNotNull(model.records[expectedDummyPath])
-            Assertions.assertNotNull(model.contents[expectedDummyPath])
-
-            testFile.createNewFile()
-            val expectedTestPath = toRecordPath(TEST_DIR, testFile)
-            Assertions.assertEquals(expectedTestPath, model.changes.tryPoll())
-            Assertions.assertNotNull(model.records[expectedTestPath])
-            Assertions.assertNotNull(model.contents[expectedTestPath])
+    fun testInitDatabase() {
+        TEST_DIR.useDir {
+            val database = RecordDatabase(MockKfr.mockFile(TEST_DIR))
+            val expectedRecord = MockKfr.mockRecord()
+            database.put(listOf(expectedRecord))
+            LocalModel(TEST_DIR, database).use { model ->
+                val actualPath = model.changes.take()
+                val actualRecord = model.records[actualPath]
+                assertThat(actualRecord, notNullValue())
+                assertThat(actualRecord, equalTo(expectedRecord))
+            }
         }
     }
 
     @Test
-    fun testPut() = TEST_DIR.useDir {
-        val (testRecord, testContent) = Random.nextFileRC()
-
-        LocalModel(TEST_DIR).use { model ->
-            model.put(testRecord, testContent)
-
-            val expectedPath = testRecord.path
-            Assertions.assertTrue(model.changes.isEmpty())
-
-            val actualRecord = model.records[expectedPath]
-            Assertions.assertNotNull(actualRecord)
-            Assertions.assertEquals(testRecord, actualRecord)
-            Assertions.assertEquals(1, model.records.size)
-
-            val actualContent = model.contents[expectedPath]
-            Assertions.assertNotNull(actualContent)
-            Assertions.assertArrayEquals(testContent.asBytes(), actualContent!!().asBytes())
-            Assertions.assertEquals(1, model.contents.size)
+    fun testMonitor() {
+        TEST_DIR.useDir {
+            LocalModel(TEST_DIR).use { model ->
+                val testFile = MockKfr.mockFile(TEST_DIR)
+                val expectedPath = toRecordPath(TEST_DIR, testFile)
+                val actualPath = model.changes.take()
+                assertThat(actualPath, equalTo(expectedPath))
+            }
         }
     }
 
     @Test
-    fun testDb() = TEST_DIR.useDir {
-        val testDbFile = TEST_DIR.resolve("model.db")
-        val testSyncDir = TEST_DIR.resolve("sync").also { it.mkdirs() }
+    fun testPutFilesystem() {
+        TEST_DIR.useDir {
+            LocalModel(TEST_DIR).use { model ->
+                val (expectedRecord, expectedContent) = MockKfr.mockBoth()
+                val expectedFile = toRealPath(TEST_DIR, expectedRecord.path)
+                model.put(expectedRecord, expectedContent)
 
-        val testInitRecord = Random.nextFileRecord()
-        val testChangeFile = testSyncDir.resolve(Random.nextHexString(TEST_FILE_NAME_LENGTH))
-        val (testPutRecord, testPutContent) = Random.nextFileRC()
-        val database = RecordDatabase(testDbFile)
-        database.put(listOf(testInitRecord))
+                assertTrue(expectedFile.exists())
+                assertArrayEquals(expectedContent.asBytes(), expectedFile.readBytes())
+            }
+        }
+    }
 
-        LocalModel(testSyncDir, database).use { model ->
-            val expectedInitPath = testInitRecord.path
-            Assertions.assertEquals(expectedInitPath, model.changes.tryPoll())
-            Assertions.assertEquals(testInitRecord, model.records[expectedInitPath])
-            Assertions.assertNotNull(model.contents[expectedInitPath])
+    @Test
+    fun testPutDatabase() {
+        TEST_DIR.useDir {
+            val database = RecordDatabase(MockKfr.mockFile(TEST_DIR))
+            LocalModel(TEST_DIR, database).use { model ->
+                val (expectedRecord, expectedContent) = MockKfr.mockBoth()
+                model.put(expectedRecord, expectedContent)
 
-            val expectedChangePath = toRecordPath(testSyncDir, testChangeFile)
-            testChangeFile.createNewFile()
-            Assertions.assertEquals(expectedChangePath, model.changes.tryPoll())
-            Assertions.assertNotNull(database.all().singleOrNull { expectedChangePath == it.path })
-
-            model.put(testPutRecord, testPutContent)
-            Assertions.assertTrue(testPutRecord in database.all())
+                assertTrue(expectedRecord in database.all())
+            }
         }
     }
 

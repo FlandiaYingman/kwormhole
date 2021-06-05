@@ -1,160 +1,106 @@
 package top.anagke.kwormhole.model
 
 import com.google.gson.Gson
-import io.ktor.client.HttpClient
-import io.ktor.client.call.receive
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.features.websocket.WebSockets
-import io.ktor.client.features.websocket.ws
-import io.ktor.client.request.forms.InputProvider
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.get
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.HttpStatement
-import io.ktor.http.HttpHeaders
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.readText
-import io.ktor.http.headersOf
-import io.ktor.util.cio.writeChannel
-import io.ktor.util.network.hostname
-import io.ktor.util.network.port
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.copyAndClose
-import io.ktor.utils.io.streams.asInput
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import mu.KotlinLogging
-import top.anagke.kwormhole.DiskFileContent
+import com.google.gson.JsonParseException
+import com.google.gson.JsonSyntaxException
+import okhttp3.Headers
+import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okio.ByteString
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
-import top.anagke.kwormhole.shouldReplace
-import top.anagke.kwormhole.sync.utcEpochMillis
+import top.anagke.kwormhole.MemoryFileContent
+import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.util.fromJson
-import java.io.File
-import java.net.SocketAddress
+import java.io.Closeable
+import java.io.IOException
 import java.util.concurrent.BlockingQueue
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
 class RemoteModel(
-    val remoteAddr: SocketAddress,
-) : Model {
+    private val host: String,
+    private val port: Int
+) : AbstractModel() {
 
-    private val logger = KotlinLogging.logger { }
+    private val runner: Thread
 
-    private val runner: Thread = thread(start = false) { run() }
-
-    private val barrier = CyclicBarrier(2)
-
-    private val kClient = KwormClient(remoteAddr.hostname, remoteAddr.port)
+    private val kwormClient = KwormClient(host, port)
 
     init {
-        runner.start()
-        barrier.await()
+        runner = thread { pollChanges() }
     }
 
-    private fun run() {
-        val wsClient = HttpClient(CIO) {
-            install(WebSockets)
-        }
+    private fun pollChanges() {
         try {
-            barrier.await()
-            val time = utcEpochMillis
-            initChanges(time)
-            monitorChanges(wsClient, time)
-        } catch (ignore: InterruptedException) {
-        } finally {
-            wsClient.close()
+            kwormClient.wsAll().use { session ->
+                while (Thread.interrupted().not()) {
+                    val record = session.buf.take()
+                    if (record.submittable()) {
+                        val (serverRecord, serverContent) = kwormClient.get(record.path)
+                        if (record == serverRecord) {
+                            submit(serverRecord, serverContent)
+                        }
+                    }
+                }
+            }
+        } catch (e: InterruptedException) {
         }
     }
 
-
-    private fun initChanges(before: Long) {
-        val remoteRecords = runBlocking { kClient.listFiles(before) }
-        remoteRecords.forEach(this::submitChange)
-    }
-
-    private fun monitorChanges(wsClient: HttpClient, after: Long) = runBlocking {
-        wsClient.ws(
-            host = remoteAddr.hostname,
-            port = remoteAddr.port,
-            path = "/ws/change",
-            request = {
-                parameter("after", after)
-            }
-        ) {
-            while (!Thread.interrupted()) {
-                val frame = incoming.receive()
-                require(frame is Frame.Text) { "The incoming frame $frame is required to be text." }
-
-                val record = Gson().fromJson<FileRecord>(frame.readText())
-                require(record != null) { "The incoming record $record is required to be non-null." }
-
-                submitChange(record)
-            }
-        }
-    }
-
-
-    override val records: Map<String, FileRecord> by lazy { recordsMutable }
-    private val recordsMutable: MutableMap<String, FileRecord> = ConcurrentHashMap()
-
-    override val contents: Map<String, FileContentProvider> by lazy { contentsMutable }
-    private val contentsMutable: MutableMap<String, FileContentProvider> = ConcurrentHashMap()
-
-    override val changes: BlockingQueue<String> = LinkedBlockingQueue()
-
-
-    private fun submitChange(record: FileRecord, manual: Boolean = false) {
-        val existingRecord = records[record.path]
-        if (record.shouldReplace(existingRecord)) {
-            recordsMutable[record.path] = record
-            contentsMutable[record.path] = { runBlocking { kClient.downloadContent(record.path) } }
-            if (manual) {
-                logger.info { "Submit manual change: $record" }
-            } else {
-                changes.offer(record.path)
-                logger.info { "Submit change: $record" }
-            }
-        }
-    }
-
-
-    override fun put(record: FileRecord, content: FileContent) {
-        runBlocking { kClient.uploadFile(record, content) }
-        submitChange(record, manual = true)
+    override fun onPut(record: FileRecord, content: FileContent) {
+        kwormClient.put(record, content)
     }
 
 
     override fun close() {
         runner.interrupt()
+        runner.join()
     }
 
     override fun toString(): String {
-        return "RemoteModel(remoteAddr=$remoteAddr)"
+        return "RemoteModel(host=$host, port=$port)"
     }
 
 }
 
+
 class KwormClient(
-    private val host: String,
-    private val port: Int,
-    private val httpClient: HttpClient = HttpClient {
-        install(JsonFeature)
-    },
+    private val serverHost: String,
+    private val serverPort: Int,
 ) {
 
-    suspend fun listFiles(before: Long? = null): List<FileRecord> {
-        return httpClient.get(host = host, port = port, path = "/") {
-            before?.let { parameter("after", it) }
-        }
+    private val client = OkHttpClient()
+
+
+    private fun newUrlBuilder(): HttpUrl.Builder {
+        return HttpUrl.Builder()
+            .host(serverHost)
+            .port(serverPort)
+            .scheme("http")
+    }
+
+
+    /**
+     * Downloads all records.
+     * @param before downloads all records before this time
+     * @return a list containing the records
+     */
+    fun wsAll(before: Long? = null, after: Long? = null): WsAllSession {
+        val url = newUrlBuilder()
+            .addPathSegments("all")
+            .apply { if (before != null) addQueryParameter("before", before.toString()) }
+            .apply { if (after != null) addQueryParameter("after", after.toString()) }
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .build()
+        return WsAllSession().apply { this.ws = client.newWebSocket(request, this) }
     }
 
     /**
@@ -162,9 +108,21 @@ class KwormClient(
      * @param path the specified path
      * @return the record object, or `null` if the record doesn't exist
      */
-    suspend fun downloadRecord(path: String): FileRecord? {
-        return httpClient.get(host = host, port = port, path = path) {
-            parameter("type", "record")
+    fun head(path: String): FileRecord {
+        val url = newUrlBuilder()
+            .addPathSegment("kfr")
+            .addPathSegments(path.removePrefix("/"))
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .head()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                return fromHttpHeaders(path, response.headers)
+            } else {
+                TODO("Throw exception")
+            }
         }
     }
 
@@ -173,38 +131,89 @@ class KwormClient(
      * @param path the specified path
      * @return the content object, or `null` if the record doesn't exist
      */
-    suspend fun downloadContent(path: String): FileContent {
-        val temp = withContext(Dispatchers.IO) {
-            @Suppress("BlockingMethodInNonBlockingContext")
-            File.createTempFile("kwormhole", null).also { it.deleteOnExit() }
+    fun get(path: String): Pair<FileRecord, MemoryFileContent> {
+        val url = newUrlBuilder()
+            .addPathSegment("kfr")
+            .addPathSegments(path.removePrefix("/"))
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+        client.newCall(request).execute().use { response ->
+            val record = fromHttpHeaders(path, response.headers)
+            val content = MemoryFileContent(response.body!!.bytes())
+            return record to content
         }
-        httpClient.get<HttpStatement>(host = host, port = port, path = path) {
-            parameter("type", "content")
-        }.execute { response: HttpResponse ->
-            val channel = response.receive<ByteReadChannel>()
-            withContext(Dispatchers.IO) {
-                channel.copyAndClose(temp.writeChannel(coroutineContext))
+    }
+
+    /**
+     * Uploads the record and the content.
+     * @param record the record to be upload
+     * @param content the content to be upload
+     */
+    fun put(record: FileRecord, content: FileContent) {
+        val url = newUrlBuilder()
+            .addPathSegment("kfr")
+            .addPathSegments(record.path.removePrefix("/"))
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .headers(toHttpHeaders(record))
+            .put(content.asBytes().toRequestBody())
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.isSuccessful.not()) throw IOException("unexpected response code: ${response.code}")
+        }
+    }
+
+}
+
+class WsAllSession : WebSocketListener(), Closeable {
+
+    var ws: WebSocket? = null
+
+    val buf: BlockingQueue<FileRecord> = LinkedBlockingQueue()
+
+    private val gson: Gson = Gson()
+
+    override fun onMessage(webSocket: WebSocket, text: String) {
+        try {
+            val record = gson.fromJson<FileRecord>(text) ?: TODO("log warning message, 'bad message: json is null'")
+            buf.put(record)
+        } catch (e: Exception) {
+            when (e) {
+                is JsonSyntaxException,
+                is JsonParseException -> {
+                    TODO("log warning message, 'bad message: bad json")
+                }
+                else -> throw e
             }
         }
-        return DiskFileContent(temp)
+
     }
 
-
-    suspend fun uploadFile(record: FileRecord, content: FileContent) {
-        val parts = formData {
-            this.append(
-                "record",
-                Gson().toJson(record)
-            )
-            this.append(
-                "content",
-                InputProvider(content.length()) { content.openStream().asInput() },
-                headersOf(HttpHeaders.ContentDisposition, "filename=")
-            )
-        }
-        httpClient.post<Unit>(host = host, port = port, path = record.path) {
-            body = MultiPartFormDataContent(parts)
-        }
+    override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+        TODO("log warning message, 'bad message: bytes format'")
     }
 
+    override fun close() {
+        ws?.close(1000, null)
+    }
+
+}
+
+fun toHttpHeaders(record: FileRecord): Headers {
+    return mapOf(
+        FileRecord.SIZE_HEADER_NAME to record.size.toString(),
+        FileRecord.TIME_HEADER_NAME to record.time.toString(),
+        FileRecord.HASH_HEADER_NAME to record.hash.toString()
+    ).toHeaders()
+}
+
+fun fromHttpHeaders(path: String, headers: Headers): FileRecord {
+    val size = headers[FileRecord.SIZE_HEADER_NAME]!!
+    val time = headers[FileRecord.TIME_HEADER_NAME]!!
+    val hash = headers[FileRecord.HASH_HEADER_NAME]!!
+    return FileRecord(path, size.toLong(), time.toLong(), hash.toLong())
 }

@@ -20,6 +20,11 @@ data class FileRecord(
     val hash: Long,
 ) {
     companion object {
+
+        const val SIZE_HEADER_NAME = "KFR-Size"
+        const val TIME_HEADER_NAME = "KFR-Time"
+        const val HASH_HEADER_NAME = "KFR-Hash"
+
         fun record(root: File, file: File): FileRecord {
             val recordPath = toRecordPath(root, file)
             return if (file.exists()) {
@@ -51,8 +56,7 @@ fun FileRecord.shouldReplace(other: FileRecord?): Boolean {
         // Otherwise, if this record is newer than the other,
         // and this record's content differs from the other's
         // we should replace it.
-        (this.time > other.time) &&
-        (this.size != other.size || this.hash != other.hash) -> true
+        (this.time > other.time) && (this.size != other.size || this.hash != other.hash) -> true
 
         // Otherwise, we shouldn't replace it.
         else -> false

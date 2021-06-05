@@ -18,19 +18,18 @@ dependencies {
 
     implementation("no.tornado:tornadofx:1.7.20")
 
-    val ktorVersion = "1.5.1"
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-client-json:$ktorVersion")
-    implementation("io.ktor:ktor-client-gson:$ktorVersion")
-    implementation("io.ktor:ktor-client-mock:$ktorVersion")
-    implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+    implementation("com.squareup.okhttp3:okhttp:4.9.1")
+    implementation("com.squareup.okhttp3:okhttp-sse:4.9.1")
+    implementation("com.squareup.moshi:moshi:1.12.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.12.0")
 
-    implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-cio:$ktorVersion")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.9.1")
 
-    implementation("io.ktor:ktor-gson:$ktorVersion")
-    implementation("io.ktor:ktor-websockets:$ktorVersion")
+    implementation("com.google.code.gson:gson:2.8.6")
+
+    testImplementation("io.ktor:ktor-server-core:1.5.1")
+    testImplementation("io.ktor:ktor-server-cio:1.5.1")
+    testImplementation("io.ktor:ktor-websockets:1.5.1")
 
     implementation("org.jetbrains.exposed:exposed-core:0.29.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.29.1")

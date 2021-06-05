@@ -13,7 +13,7 @@ fun main(args: Array<String>) {
 
     val database = RecordDatabase(File("./kwormhole.db"))
     val localModel = LocalModel(File(parsedArgs.root), database)
-    val remoteModel = RemoteModel(InetSocketAddress(parsedArgs.serverHost, parsedArgs.serverPort))
+    val remoteModel = RemoteModel(parsedArgs.serverHost, parsedArgs.serverPort)
 
     val uploader = Synchronizer(localModel, remoteModel)
     val downloader = Synchronizer(remoteModel, localModel)
