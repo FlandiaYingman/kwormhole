@@ -7,6 +7,7 @@ import java.io.Closeable
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.concurrent.thread
 
 typealias FileContentProvider = () -> FileContent
 
@@ -54,6 +55,20 @@ interface Model : Closeable {
 
 abstract class AbstractModel : Model {
 
+    private var runner: Thread? = null
+
+    fun start() {
+        runner = thread {
+            val init = init()
+            init.forEach { (record, content) -> submit(record, content) }
+            while (Thread.interrupted().not()) {
+                val pollList = poll()
+                pollList.forEach { (record, content) -> submit(record, content) }
+            }
+        }
+    }
+
+
     override val records: Map<String, FileRecord> by lazy { mutableRecords }
     private val mutableRecords: MutableMap<String, FileRecord> = ConcurrentHashMap()
 
@@ -71,6 +86,16 @@ abstract class AbstractModel : Model {
     }
 
     abstract fun onPut(record: FileRecord, content: FileContent)
+
+
+    abstract fun init(): List<Pair<FileRecord, FileContent>>
+
+    abstract fun poll(): List<Pair<FileRecord, FileContent>>
+
+    override fun close() {
+        runner?.interrupt()
+        runner?.join()
+    }
 
 
     protected fun submit(record: FileRecord, content: FileContent) {

@@ -10,12 +10,12 @@ import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import top.anagke.kwormhole.DiskFileContent
 import top.anagke.kwormhole.FileContent
 import top.anagke.kwormhole.FileRecord
 import top.anagke.kwormhole.model.RecordEntity.Companion.fromObj
 import top.anagke.kwormhole.model.RecordEntity.Companion.toObj
-import top.anagke.kwormhole.toRealPath
+import top.anagke.kwormhole.shouldReplace
+import top.anagke.kwormhole.toDiskPath
 import top.anagke.kwormhole.writeToFile
 import java.io.Closeable
 import java.io.File
@@ -25,7 +25,6 @@ import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
-import kotlin.concurrent.thread
 
 
 class LocalModel(
@@ -33,67 +32,67 @@ class LocalModel(
     private val database: RecordDatabase? = null,
 ) : AbstractModel() {
 
-    private val runner: Thread
-
-    init {
-        runner = thread { run() }
-    }
+    private val monitor = FileSystemMonitor(localDir)
 
 
-    private fun run() {
-        val monitor = FileSystemMonitor(listOf(localDir))
-        try {
-            initModel()
-            monitorModel(monitor)
-        } catch (ignore: InterruptedException) {
-        } finally {
-            monitor.close()
-        }
-    }
-
-    private fun initModel() {
-        val recordsDb = database?.all()
-        recordsDb?.forEach { record ->
-            submit(record, DiskFileContent(toRealPath(localDir, record.path)))
-        }
-
-        val recordsDisk = localDir.walk()
+    override fun init(): List<Pair<FileRecord, FileContent>> {
+        val databaseRecords = database?.all()
+            ?.map { fromDatabase(it) }
+            .orEmpty()
+            .toList()
+        val diskRecords = localDir.walk()
             .filter { it != localDir }
             .filter { it.isFile }
+            .map { fromDisk(it) }
             .toList()
-        recordsDisk.forEach(this::submitFile)
+        return databaseRecords + diskRecords
     }
 
-    private fun monitorModel(monitor: FileSystemMonitor) {
-        while (Thread.interrupted().not()) {
-            monitor.take().forEach { watchEvent ->
-                val event = FileChangeEvent.from(localDir, watchEvent)
-                if (event.file.isFile) {
-                    submitFile(event.file)
-                }
-            }
+    override fun poll(): List<Pair<FileRecord, FileContent>> {
+        val changes = monitor.take()
+            .filterNot { it.file.isDirectory }
+            .map { fromDisk(it.file) }
+            .toList()
+        return changes
+    }
+
+    private fun fromDatabase(record: FileRecord): Pair<FileRecord, FileContent> {
+        val path = record.path
+        val diskPath = path.toDiskPath(localDir)
+        val newRecord = FileRecord.record(localDir, diskPath)
+        val content = FileContent.content(diskPath)
+        return if (newRecord.shouldReplace(record)) {
+            (newRecord to content)
+        } else {
+            (record to content)
         }
+    }
+
+    private fun fromDisk(file: File): Pair<FileRecord, FileContent> {
+        val record = FileRecord.record(localDir, file)
+        val content = FileContent.content(file)
+        return record to content
     }
 
 
     override fun onPut(record: FileRecord, content: FileContent) {
-        val actualFile = toRealPath(localDir, record.path)
-        actualFile.parentFile.mkdirs()
-        content.writeToFile(actualFile)
-
+        val diskPath = record.path.toDiskPath(localDir)
+        if (record.isNone()) {
+            diskPath.delete()
+            //TODO: Delete 'diskPath's parent
+        } else {
+            if (diskPath.parentFile.exists().not()) {
+                diskPath.parentFile.mkdirs()
+            }
+            content.writeToFile(diskPath)
+        }
         database?.put(listOf(record))
-    }
-
-    private fun submitFile(file: File) {
-        val record = FileRecord.record(localDir, file)
-        val content = DiskFileContent(file)
-        submit(record, content)
     }
 
 
     override fun close() {
-        runner.interrupt()
-        runner.join()
+        super.close()
+        monitor.close()
         database?.close()
     }
 
@@ -105,35 +104,32 @@ class LocalModel(
 
 
 private class FileSystemMonitor(
-    directories: List<File>,
+    directory: File,
 ) : Closeable {
 
     private val watchService: WatchService
 
-    private val watchDirectories: List<Path> = directories.map(File::toPath)
+    private val watchDirectory: Path = directory.toPath()
 
     init {
-        watchDirectories.forEach {
-            require(Files.isDirectory(it)) { "The directory $it is required to be a directory." }
-        }
+        require(Files.isDirectory(watchDirectory)) { "The directory $watchDirectory is required to be a directory." }
+
 
         watchService = FileSystems.getDefault().newWatchService()
-        watchDirectories.forEach {
-            it.register(
-                watchService,
-                StandardWatchEventKinds.ENTRY_CREATE,
-                StandardWatchEventKinds.ENTRY_DELETE,
-                StandardWatchEventKinds.ENTRY_MODIFY
-            )
-        }
+        watchDirectory.register(
+            watchService,
+            StandardWatchEventKinds.ENTRY_CREATE,
+            StandardWatchEventKinds.ENTRY_DELETE,
+            StandardWatchEventKinds.ENTRY_MODIFY
+        )
     }
 
-    fun take(): List<WatchEvent<*>> {
+    fun take(): List<FileChangeEvent> {
         val watchKey = watchService.take()
         val events = watchKey.pollEvents()
         watchKey.reset()
 
-        return events
+        return events.map { FileChangeEvent.from(watchDirectory.toFile(), it) }
     }
 
     override fun close() {

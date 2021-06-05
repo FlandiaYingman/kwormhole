@@ -10,10 +10,10 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.transaction.annotation.Transactional
-import top.anagke.kwormhole.model.ContentEntity
-import top.anagke.kwormhole.model.ContentRepository
-import top.anagke.kwormhole.model.RecordEntity
-import top.anagke.kwormhole.model.RecordRepository
+import top.anagke.kwormhole.dao.ContentEntity
+import top.anagke.kwormhole.dao.ContentRepository
+import top.anagke.kwormhole.dao.RecordEntity
+import top.anagke.kwormhole.dao.RecordRepository
 import top.anagke.kwormhole.util.Hasher
 import kotlin.random.Random
 

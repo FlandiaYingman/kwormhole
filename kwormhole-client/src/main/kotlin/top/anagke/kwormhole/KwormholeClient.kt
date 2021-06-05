@@ -6,7 +6,6 @@ import top.anagke.kwormhole.model.RecordDatabase
 import top.anagke.kwormhole.model.RemoteModel
 import top.anagke.kwormhole.sync.Synchronizer
 import java.io.File
-import java.net.InetSocketAddress
 
 fun main(args: Array<String>) {
     val parsedArgs = ArgParser(args).parseInto(::Args)
@@ -18,7 +17,8 @@ fun main(args: Array<String>) {
     val uploader = Synchronizer(localModel, remoteModel)
     val downloader = Synchronizer(remoteModel, localModel)
 
-    return
+    localModel.start()
+    remoteModel.start()
 }
 
 private class Args(parser: ArgParser) {

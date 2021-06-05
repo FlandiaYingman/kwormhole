@@ -1,4 +1,4 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.dao
 
 import org.springframework.data.jpa.repository.JpaRepository
 import java.sql.Blob

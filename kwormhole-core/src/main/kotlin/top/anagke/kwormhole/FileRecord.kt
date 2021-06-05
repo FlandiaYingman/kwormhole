@@ -19,6 +19,7 @@ data class FileRecord(
     val time: Long,
     val hash: Long,
 ) {
+
     companion object {
 
         const val SIZE_HEADER_NAME = "KFR-Size"
@@ -26,26 +27,32 @@ data class FileRecord(
         const val HASH_HEADER_NAME = "KFR-Hash"
 
         fun record(root: File, file: File): FileRecord {
-            val recordPath = toRecordPath(root, file)
+            val recordPath = file.toRecordPath(root)
             return if (file.exists()) {
                 FileRecord(recordPath, file.length(), utcEpochMillis, Hasher.hash(file))
             } else {
                 FileRecord(recordPath, -1, utcEpochMillis, 0)
             }
         }
+
     }
+
+    fun isNone(): Boolean {
+        return size < 0
+    }
+
 }
 
-fun toRecordPath(root: File, file: File): String {
+fun File.toRecordPath(root: File): String {
     val canonicalRoot = root.canonicalFile
-    val canonicalFile = file.canonicalFile
-    require(canonicalFile.startsWith(canonicalRoot)) { "The file $file is required to belong to $root" }
+    require(canonicalFile.startsWith(canonicalRoot)) { "The file $this is required to belong to $root" }
     return "/${canonicalFile.toRelativeString(canonicalRoot).replace(File.separatorChar, '/')}"
 }
 
-fun toRealPath(root: File, path: String): File {
-    return root.resolve(path.removePrefix("/").replace('/', File.separatorChar))
+fun String.toDiskPath(root: File): File {
+    return root.resolve(this.removePrefix("/").replace('/', File.separatorChar))
 }
+
 
 fun FileRecord.shouldReplace(other: FileRecord?): Boolean {
     return when {

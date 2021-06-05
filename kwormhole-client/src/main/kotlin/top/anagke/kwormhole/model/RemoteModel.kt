@@ -21,35 +21,28 @@ import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.concurrent.thread
 
 class RemoteModel(
     private val host: String,
     private val port: Int
 ) : AbstractModel() {
 
-    private val runner: Thread
-
     private val kwormClient = KwormClient(host, port)
 
-    init {
-        runner = thread { pollChanges() }
+    private val wsAllSession = kwormClient.wsAll()
+
+
+    override fun init(): List<Pair<FileRecord, FileContent>> {
+        return emptyList()
     }
 
-    private fun pollChanges() {
-        try {
-            kwormClient.wsAll().use { session ->
-                while (Thread.interrupted().not()) {
-                    val record = session.buf.take()
-                    if (record.submittable()) {
-                        val (serverRecord, serverContent) = kwormClient.get(record.path)
-                        if (record == serverRecord) {
-                            submit(serverRecord, serverContent)
-                        }
-                    }
-                }
-            }
-        } catch (e: InterruptedException) {
+    override fun poll(): List<Pair<FileRecord, FileContent>> {
+        val record = wsAllSession.buf.take()
+        return if (record.submittable()) {
+            val (serverRecord, serverContent) = kwormClient.get(record.path)
+            listOf((serverRecord to serverContent))
+        } else {
+            emptyList()
         }
     }
 
@@ -57,10 +50,9 @@ class RemoteModel(
         kwormClient.put(record, content)
     }
 
-
     override fun close() {
-        runner.interrupt()
-        runner.join()
+        super.close()
+        wsAllSession.close()
     }
 
     override fun toString(): String {

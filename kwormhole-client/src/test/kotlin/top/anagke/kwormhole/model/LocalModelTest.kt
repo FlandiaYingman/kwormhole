@@ -10,7 +10,7 @@ import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.useDir
-import top.anagke.kwormhole.toRealPath
+import top.anagke.kwormhole.toDiskPath
 import top.anagke.kwormhole.toRecordPath
 
 internal class LocalModelTest {
@@ -20,7 +20,7 @@ internal class LocalModelTest {
         TEST_DIR.useDir {
             val testFile = MockKfr.mockFile(TEST_DIR)
             LocalModel(TEST_DIR).use { model ->
-                val expectedPath = toRecordPath(TEST_DIR, testFile)
+                val expectedPath = testFile.toRecordPath(TEST_DIR)
                 val actualPath = model.changes.take()
                 assertThat(actualPath, equalTo(expectedPath))
             }
@@ -47,7 +47,7 @@ internal class LocalModelTest {
         TEST_DIR.useDir {
             LocalModel(TEST_DIR).use { model ->
                 val testFile = MockKfr.mockFile(TEST_DIR)
-                val expectedPath = toRecordPath(TEST_DIR, testFile)
+                val expectedPath = testFile.toRecordPath(TEST_DIR)
                 val actualPath = model.changes.take()
                 assertThat(actualPath, equalTo(expectedPath))
             }
@@ -59,7 +59,7 @@ internal class LocalModelTest {
         TEST_DIR.useDir {
             LocalModel(TEST_DIR).use { model ->
                 val (expectedRecord, expectedContent) = MockKfr.mockBoth()
-                val expectedFile = toRealPath(TEST_DIR, expectedRecord.path)
+                val expectedFile = expectedRecord.path.toDiskPath(TEST_DIR)
                 model.put(expectedRecord, expectedContent)
 
                 assertTrue(expectedFile.exists())
