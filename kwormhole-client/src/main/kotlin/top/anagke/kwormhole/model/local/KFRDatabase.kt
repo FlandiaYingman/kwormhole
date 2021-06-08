@@ -11,8 +11,6 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import top.anagke.kwormhole.KFR
-import top.anagke.kwormhole.model.local.KFREntity.Companion.fromObj
-import top.anagke.kwormhole.model.local.KFREntity.Companion.toObj
 import java.io.Closeable
 import java.io.File
 
@@ -38,26 +36,28 @@ class KFRDatabase(
 
     fun all(): List<KFR> {
         return transaction(database) {
-            KFREntity.all().map { it.toObj() }.toList()
+            KFREntity.all()
+                .map { it.toKfr() }
+        }
+    }
+
+    fun get(path: String): KFR? {
+        return transaction(database) {
+            KFREntity.findById(path)
+                ?.toKfr()
         }
     }
 
     fun put(records: Collection<KFR>) {
         transaction(database) {
             for (record in records) {
-                val recordEntity = KFREntity.findById(record.path)
-                if (recordEntity == null) {
-                    KFREntity.new(record.path) { this.fromObj(record) }
+                val entity = KFREntity.findById(record.path)
+                if (entity != null) {
+                    entity.byKfr(record)
                 } else {
-                    recordEntity.fromObj(record)
+                    KFREntity.new(record.path) { byKfr(record) }
                 }
             }
-        }
-    }
-
-    fun get(path: String): KFR? {
-        return transaction(database) {
-            KFREntity.findById(path)?.toObj()
         }
     }
 
@@ -67,7 +67,7 @@ class KFRDatabase(
 
 }
 
-object KFRTable : IdTable<String>("file_record") {
+object KFRTable : IdTable<String>("kfr") {
 
     override val id: Column<EntityID<String>> = varchar("path", 1024).uniqueIndex().entityId()
 
@@ -83,20 +83,7 @@ object KFRTable : IdTable<String>("file_record") {
 
 class KFREntity(id: EntityID<String>) : Entity<String>(id) {
 
-    companion object : EntityClass<String, KFREntity>(KFRTable) {
-
-        fun KFREntity.fromObj(record: KFR) {
-            require(this.path == record.path) { "The path ${this.path} and ${record.path} are required to be same." }
-            size = record.size
-            time = record.time
-            hash = record.hash
-        }
-
-        fun KFREntity.toObj(): KFR {
-            return KFR(path, time, size, hash)
-        }
-
-    }
+    companion object : EntityClass<String, KFREntity>(KFRTable)
 
     val path = this.id.value
 
@@ -105,5 +92,16 @@ class KFREntity(id: EntityID<String>) : Entity<String>(id) {
     var time by KFRTable.time
 
     var hash by KFRTable.hash
+
+    fun byKfr(record: KFR) {
+        require(this.path == record.path) { "The path ${this.path} and ${record.path} are required to be same." }
+        size = record.size
+        time = record.time
+        hash = record.hash
+    }
+
+    fun toKfr(): KFR {
+        return KFR(path, time, size, hash)
+    }
 
 }
