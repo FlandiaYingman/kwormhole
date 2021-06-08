@@ -59,7 +59,7 @@ class IntegrationTest {
     }
 
     @Test
-   // @Timeout(30, unit = SECONDS)
+    @Timeout(30, unit = SECONDS)
     fun test_create_basic() {
         test_create(64, 4 * 1024)
     }
