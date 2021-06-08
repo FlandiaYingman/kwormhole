@@ -26,8 +26,8 @@ data class KFR(
         const val SIZE_HEADER_NAME = "KFR-Size"
         const val HASH_HEADER_NAME = "KFR-Hash"
 
-        fun File.recordAsKFR(root: File): KFR {
-            val path = this.toRecordPath(root)
+        fun File.asKfr(root: File): KFR {
+            val path = this.toKfrPath(root)
             val time = utcEpochMillis
             val size = if (this.exists()) this.length() else -1
             val hash = if (this.exists()) Hasher.hash(this) else 0
@@ -56,12 +56,12 @@ data class KFR(
 
 }
 
-fun File.toRecordPath(root: File): String {
+fun File.toKfrPath(root: File): String {
     val canonicalRoot = root.canonicalFile
     require(canonicalFile.startsWith(canonicalRoot)) { "The file $this is required to belong to $root" }
     return "/${canonicalFile.toRelativeString(canonicalRoot).replace(File.separatorChar, '/')}"
 }
 
-fun String.toDiskPath(root: File): File {
+fun String.resolveBy(root: File): File {
     return root.resolve(this.removePrefix("/").replace('/', File.separatorChar))
 }
