@@ -6,15 +6,7 @@ import top.anagke.kwormhole.KFR
 import top.anagke.kwormhole.KFR.Companion.recordAsKFR
 import top.anagke.kwormhole.model.AbstractModel
 import top.anagke.kwormhole.toDiskPath
-import java.io.Closeable
 import java.io.File
-import java.nio.file.FileSystems
-import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds.*
-import java.nio.file.WatchEvent
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.LinkedBlockingQueue
-import kotlin.concurrent.thread
 
 
 class LocalModel(
@@ -24,7 +16,7 @@ class LocalModel(
 
     private val logger = KotlinLogging.logger {}
 
-    private val monitor = FileSystemMonitor(root)
+    private val monitor = FileAltMonitor(root)
 
 
     override fun init() {
@@ -43,7 +35,7 @@ class LocalModel(
 
     override fun poll() {
         val changes = monitor.take()
-        submitFile(changes.map { it.file })
+        submitFile(changes)
     }
 
     @Synchronized
@@ -111,83 +103,6 @@ class LocalModel(
 
     override fun toString(): String {
         return "LocalModel(localDir=$root)"
-    }
-
-}
-
-
-private class FileSystemMonitor(
-    directory: File,
-) : Closeable {
-
-    private val runner: Thread
-
-    private val buffer: BlockingQueue<FileChangeEvent> = LinkedBlockingQueue()
-
-    init {
-        require(directory.isDirectory) { "The directory $directory is required to be a directory." }
-        runner = thread {
-            run(directory)
-        }
-    }
-
-    private fun run(directory: File) {
-        FileSystems.getDefault().newWatchService().use { service ->
-            try {
-                directory.toPath().register(service, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
-                while (!Thread.interrupted()) {
-                    val key = service.take()
-                    key.pollEvents()
-                        .asSequence()
-                        .map { FileChangeEvent.from(directory, it) }
-                        .forEach { buffer.put(it) }
-                    key.reset()
-                }
-            } catch (e: InterruptedException) {
-            }
-        }
-    }
-
-    fun take(): List<FileChangeEvent> {
-        val events = mutableListOf<FileChangeEvent>()
-        while (buffer.isNotEmpty()) {
-            val take = buffer.take()
-            if (!take.file.isDirectory) events += take
-        }
-        return events
-    }
-
-    override fun close() {
-        runner.interrupt()
-        runner.join()
-    }
-
-}
-
-private data class FileChangeEvent(
-    val file: File,
-    val change: Type,
-) {
-
-    enum class Type {
-        MODIFIED,
-        CREATED,
-        DELETED,
-    }
-
-    companion object {
-
-        fun from(root: File, event: WatchEvent<*>): FileChangeEvent {
-            val file = root.resolve((event.context() as Path).toFile())
-            val type = when (event.kind()) {
-                ENTRY_CREATE -> Type.CREATED
-                ENTRY_DELETE -> Type.DELETED
-                ENTRY_MODIFY -> Type.MODIFIED
-                else -> error("Unexpected kind of watch event $event.")
-            }
-            return FileChangeEvent(file, type)
-        }
-
     }
 
 }
