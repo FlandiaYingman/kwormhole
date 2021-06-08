@@ -1,9 +1,8 @@
 package top.anagke.kwormhole.model
 
-import top.anagke.kwormhole.KFR
+import top.anagke.kwormhole.Kfr
 import java.io.Closeable
 import java.io.File
-import java.nio.file.Path
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -21,7 +20,7 @@ interface Model : Closeable {
      * Note that the model should only be used in single thread. Hence, if multiple threads are using this property,
      * every thread might receive only part of changes.
      */
-    val changes: BlockingQueue<KFR>
+    val changes: BlockingQueue<Kfr>
 
 
     fun where(path: String): File?
@@ -31,11 +30,11 @@ interface Model : Closeable {
      * @param record the record to be put
      * @param content the content to be put
      */
-    fun put(record: KFR, content: File?)
+    fun put(record: Kfr, content: File?)
 
-    fun getRecord(path: String): KFR?
+    fun getRecord(path: String): Kfr?
 
-    fun getContent(path: String, file: File): KFR?
+    fun getContent(path: String, file: File): Kfr?
 
 
     /**
@@ -64,7 +63,7 @@ abstract class AbstractModel : Model {
     }
 
 
-    override val changes: BlockingQueue<KFR> = LinkedBlockingQueue()
+    override val changes: BlockingQueue<Kfr> = LinkedBlockingQueue()
 
 
     abstract fun init()
@@ -77,7 +76,7 @@ abstract class AbstractModel : Model {
     }
 
 
-    fun KFR.isValid(): Boolean {
+    fun Kfr.isValid(): Boolean {
         return this.isValidTo(getRecord(path))
     }
 

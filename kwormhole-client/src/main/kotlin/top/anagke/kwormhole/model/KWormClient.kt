@@ -10,10 +10,9 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.internal.EMPTY_BYTE_ARRAY
-import okhttp3.internal.wait
 import okio.ByteString
 import top.anagke.kio.createFile
-import top.anagke.kwormhole.KFR
+import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.util.fromJson
 import java.io.ByteArrayInputStream
 import java.io.Closeable
@@ -63,7 +62,7 @@ class KWormClient(
      * @param path the path
      * @return the record object, or `null` if the record doesn't exist
      */
-    fun downloadRecord(path: String): KFR? {
+    fun downloadRecord(path: String): Kfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
@@ -87,7 +86,7 @@ class KWormClient(
      * @param file where the content to be downloaded into
      * @return the record object, or `null` if the record doesn't exist
      */
-    fun downloadContent(path: String, file: File): KFR? {
+    fun downloadContent(path: String, file: File): Kfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
@@ -118,7 +117,7 @@ class KWormClient(
      * @param record the record
      * @param content the content of the record
      */
-    fun upload(record: KFR, content: File?) {
+    fun upload(record: Kfr, content: File?) {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(record.path.removePrefix("/"))
@@ -143,14 +142,14 @@ class KWormConnection : WebSocketListener(), Closeable {
     var ws: WebSocket? = null
         internal set
 
-    private val buf: BlockingQueue<KFR> = LinkedBlockingQueue()
+    private val buf: BlockingQueue<Kfr> = LinkedBlockingQueue()
 
     private val gson: Gson = Gson()
 
 
     override fun onMessage(webSocket: WebSocket, text: String) {
         try {
-            val record = gson.fromJson<KFR>(text) ?: TODO("log warning message, 'bad message: json is null'")
+            val record = gson.fromJson<Kfr>(text) ?: TODO("log warning message, 'bad message: json is null'")
             buf.put(record)
         } catch (e: Exception) {
             when (e) {
@@ -168,7 +167,7 @@ class KWormConnection : WebSocketListener(), Closeable {
     }
 
 
-    fun take(): List<KFR> {
+    fun take(): List<Kfr> {
         if (!open) {
             throw IOException("connection closed")
         }

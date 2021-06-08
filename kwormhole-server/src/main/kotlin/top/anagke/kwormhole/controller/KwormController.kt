@@ -12,18 +12,18 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import top.anagke.kwormhole.KFR
-import top.anagke.kwormhole.KFR.Companion.HASH_HEADER_NAME
-import top.anagke.kwormhole.KFR.Companion.SIZE_HEADER_NAME
-import top.anagke.kwormhole.KFR.Companion.TIME_HEADER_NAME
-import top.anagke.kwormhole.service.KFRService
+import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.Kfr.Companion.HASH_HEADER_NAME
+import top.anagke.kwormhole.Kfr.Companion.SIZE_HEADER_NAME
+import top.anagke.kwormhole.Kfr.Companion.TIME_HEADER_NAME
+import top.anagke.kwormhole.service.KfrService
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 private fun HttpServletRequest.kfrPath() = this.servletPath.removePrefix("/kfr")
 
-private fun KFR.toHttpHeaders(): Map<String, String> {
+private fun Kfr.toHttpHeaders(): Map<String, String> {
     return mapOf(
         SIZE_HEADER_NAME to size.toString(),
         TIME_HEADER_NAME to time.toString(),
@@ -31,12 +31,12 @@ private fun KFR.toHttpHeaders(): Map<String, String> {
     )
 }
 
-private fun Map<String, String>.fromHeadersMap(path: String): KFR {
+private fun Map<String, String>.fromHeadersMap(path: String): Kfr {
     val mapCaseInsensitive = TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER).also { it.putAll(this) }
     val size = mapCaseInsensitive[SIZE_HEADER_NAME]!!.toLong()
     val time = mapCaseInsensitive[TIME_HEADER_NAME]!!.toLong()
     val hash = mapCaseInsensitive[HASH_HEADER_NAME]!!.toLong()
-    return KFR(path, time, size, hash)
+    return Kfr(path, time, size, hash)
 }
 
 @ResponseStatus(value = HttpStatus.NOT_FOUND, reason = "KFR not found")
@@ -45,7 +45,7 @@ class KfrNotFoundException(pathNotFound: String) : Exception("$pathNotFound not 
 
 @RestController
 internal class KwormController(
-    private val kfrService: KFRService
+    private val kfrService: KfrService
 ) {
 
     private val logger = KotlinLogging.logger { }

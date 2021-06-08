@@ -2,8 +2,8 @@ package top.anagke.kwormhole.model.local
 
 import mu.KotlinLogging
 import top.anagke.kio.deleteFile
-import top.anagke.kwormhole.KFR
-import top.anagke.kwormhole.KFR.Companion.asKfr
+import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.Kfr.Companion.asKfr
 import top.anagke.kwormhole.model.AbstractModel
 import top.anagke.kwormhole.resolveBy
 import java.io.File
@@ -11,7 +11,7 @@ import java.io.File
 
 class LocalModel(
     private val root: File,
-    private val database: KFRDatabase,
+    private val database: KfrDatabase,
 ) : AbstractModel() {
 
     private val logger = KotlinLogging.logger {}
@@ -50,12 +50,12 @@ class LocalModel(
 
 
     @Synchronized
-    override fun getRecord(path: String): KFR? {
+    override fun getRecord(path: String): Kfr? {
         return database.get(path)
     }
 
     @Synchronized
-    override fun getContent(path: String, file: File): KFR? {
+    override fun getContent(path: String, file: File): Kfr? {
         val kfr = getRecord(path) ?: return null
         if (kfr.representsExisting()) {
             val diskPath = kfr.path.resolveBy(root)
@@ -75,7 +75,7 @@ class LocalModel(
     }
 
     @Synchronized
-    override fun put(record: KFR, content: File?) {
+    override fun put(record: Kfr, content: File?) {
         if (record.isValid()) {
             logger.info { "Putting KFR $record" }
             val diskPath = record.path.resolveBy(root)

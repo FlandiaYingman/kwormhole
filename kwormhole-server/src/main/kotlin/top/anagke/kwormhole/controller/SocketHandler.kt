@@ -10,8 +10,8 @@ import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
 import org.springframework.web.util.UriComponentsBuilder
-import top.anagke.kwormhole.KFR
-import top.anagke.kwormhole.service.KFRService
+import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.service.KfrService
 import java.util.*
 
 
@@ -22,7 +22,7 @@ class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
 
 
     @Autowired
-    private lateinit var kfrService: KFRService
+    private lateinit var kfrService: KfrService
 
     private val sessions: MutableList<WebSocketSession> = Collections.synchronizedList(mutableListOf())
 
@@ -49,7 +49,7 @@ class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
     }
 
 
-    private fun WebSocketSession.sendRecord(record: KFR) {
+    private fun WebSocketSession.sendRecord(record: Kfr) {
         val uriComponents = UriComponentsBuilder.fromUri(uri!!).build()
         val before = uriComponents.queryParams["before"]?.first()?.toLong() ?: Long.MAX_VALUE
         val after = uriComponents.queryParams["after"]?.first()?.toLong() ?: Long.MIN_VALUE
@@ -63,5 +63,5 @@ class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
 
 class RepoEvent(
     source: Any,
-    val record: KFR
+    val record: Kfr
 ) : ApplicationEvent(source)

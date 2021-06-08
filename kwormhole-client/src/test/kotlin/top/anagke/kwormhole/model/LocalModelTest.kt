@@ -7,9 +7,9 @@ import top.anagke.kio.bytes
 import top.anagke.kio.createDir
 import top.anagke.kio.deleteFile
 import top.anagke.kio.notExists
-import top.anagke.kwormhole.KFR
-import top.anagke.kwormhole.MockKFR
-import top.anagke.kwormhole.model.local.KFRDatabase
+import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.MockKfr
+import top.anagke.kwormhole.model.local.KfrDatabase
 import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.test.TEST_DIR
@@ -29,23 +29,23 @@ internal class LocalModelTest {
             return rootFile
         }
 
-    private val testDatabase: KFRDatabase
+    private val testDatabase: KfrDatabase
         get() {
             val databaseFile = TEST_DIR.resolve("test.db")
             databaseFile.deleteFile()
             databaseFile.deleteOnExit()
-            return KFRDatabase(databaseFile)
+            return KfrDatabase(databaseFile)
         }
 
 
     @Test
     fun init_fromDisk() {
         TEST_DIR.useDir {
-            val (_, expectedKFR) = MockKFR.mockOnRandomFile(testRoot)
+            val (_, expectedKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
-                val actualKFR = model.changes.take()
-                assertTrue(expectedKFR.contentEquals(actualKFR))
+                val actualKfr = model.changes.take()
+                assertTrue(expectedKfr.contentEquals(actualKfr))
             }
         }
     }
@@ -53,13 +53,13 @@ internal class LocalModelTest {
     @Test
     fun init_fromDatabase() {
         TEST_DIR.useDir {
-            val (_, expectedKFR) = MockKFR.mockOnRandomFile(testRoot)
+            val (_, expectedKfr) = MockKfr.mockOnRandomFile(testRoot)
             val database = testDatabase
-            database.put(listOf(expectedKFR))
+            database.put(listOf(expectedKfr))
             LocalModel(testRoot, database).use { model ->
                 model.open()
-                val actualKFR = pollNonnull { model.getRecord(expectedKFR.path) }
-                assertEquals(expectedKFR, actualKFR)
+                val actualKfr = pollNonnull { model.getRecord(expectedKfr.path) }
+                assertEquals(expectedKfr, actualKfr)
             }
         }
     }
@@ -67,14 +67,14 @@ internal class LocalModelTest {
     @Test
     fun init_fromDatabaseButDiskChanged() {
         TEST_DIR.useDir {
-            val (testFile, testKFR) = MockKFR.mockOnRandomFile(testRoot)
+            val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
             testFile.bytes = Random.nextBytes(64)
             val database = testDatabase
-            database.put(listOf(testKFR))
+            database.put(listOf(testKfr))
             LocalModel(testRoot, database).use { model ->
                 model.open()
-                val actualKFR = model.changes.take()
-                assertTrue(actualKFR.isValidTo(testKFR))
+                val actualKfr = model.changes.take()
+                assertTrue(actualKfr.isValidTo(testKfr))
             }
         }
     }
@@ -83,12 +83,12 @@ internal class LocalModelTest {
     @Test
     fun monitor_createFile() {
         TEST_DIR.useDir {
-            val (_, dummyKFR) = MockKFR.mockOnRandomFile(testRoot)
+            val (_, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
-                assertTrue(dummyKFR.contentEquals(model.changes.take()))
+                assertTrue(dummyKfr.contentEquals(model.changes.take()))
 
-                val (_, testKfr) = MockKFR.mockOnRandomFile(testRoot)
+                val (_, testKfr) = MockKfr.mockOnRandomFile(testRoot)
                 val actualKfr = model.changes.take()
                 assertTrue(testKfr.contentEquals(actualKfr))
             }
@@ -98,7 +98,7 @@ internal class LocalModelTest {
     @Test
     fun monitor_modifyFile() {
         TEST_DIR.useDir {
-            val (testFile, testKfr) = MockKFR.mockOnRandomFile(testRoot)
+            val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
                 assertTrue(testKfr.contentEquals(model.changes.take()))
@@ -114,7 +114,7 @@ internal class LocalModelTest {
     @Test
     fun monitor_deleteFile() {
         TEST_DIR.useDir {
-            val (testFile, testKfr) = MockKFR.mockOnRandomFile(testRoot)
+            val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
                 assertTrue(testKfr.contentEquals(model.changes.take()))
@@ -135,7 +135,7 @@ internal class LocalModelTest {
                 model.open()
 
                 //PUT
-                val (file, kfr) = MockKFR.mockOnRandomFile(TEST_DIR)
+                val (file, kfr) = MockKfr.mockOnRandomFile(TEST_DIR)
                 val bytes = file.bytes
                 model.put(kfr, file)
 
@@ -143,7 +143,7 @@ internal class LocalModelTest {
                 val path = kfr.path
                 val getRecordKfr = model.getRecord(path)
                 assertEquals(kfr, getRecordKfr)
-                val getContentFile = MockKFR.mockFile(TEST_DIR)
+                val getContentFile = MockKfr.mockFile(TEST_DIR)
                 val getContentKfr = model.getContent(path, getContentFile)
                 assertEquals(kfr, getContentKfr)
                 assertArrayEquals(bytes, getContentFile.bytes)
@@ -154,13 +154,13 @@ internal class LocalModelTest {
     @Test
     fun putDelete_get() {
         TEST_DIR.useDir {
-            val (dummyFile, dummyKfr) = MockKFR.mockOnRandomFile(testRoot)
+            val (dummyFile, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
                 assertTrue(dummyKfr.contentEquals(model.changes.take()))
 
                 //PUT
-                val kfr = KFR(dummyKfr.path, utcEpochMillis, -1, 0)
+                val kfr = Kfr(dummyKfr.path, utcEpochMillis, -1, 0)
                 model.put(kfr, null)
                 assertTrue(dummyFile.notExists())
 
@@ -168,7 +168,7 @@ internal class LocalModelTest {
                 val path = kfr.path
                 val getRecordKfr = model.getRecord(path)
                 assertEquals(kfr, getRecordKfr)
-                val getContentFile = MockKFR.mockFile(TEST_DIR)
+                val getContentFile = MockKfr.mockFile(TEST_DIR)
                 val getContentKfr = model.getContent(path, getContentFile)
                 assertEquals(kfr, getContentKfr)
                 assertTrue(getContentFile.notExists())
@@ -183,7 +183,7 @@ internal class LocalModelTest {
         val fileCount = 1024
         val fileSize = 64 * 1024
         TEST_DIR.useDir {
-            val mockFiles = List(fileCount) { MockKFR.mockOnRandomFile(testRoot) }
+            val mockFiles = List(fileCount) { MockKfr.mockOnRandomFile(testRoot) }
             val mockKfrs = mockFiles.map { (_, kfr) -> kfr }
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()
@@ -209,7 +209,7 @@ internal class LocalModelTest {
         val fileCount = 4
         val fileSize = 64 * 1024 * 1024
         TEST_DIR.useDir {
-            val mockFiles = List(fileCount) { MockKFR.mockOnRandomFile(testRoot) }
+            val mockFiles = List(fileCount) { MockKfr.mockOnRandomFile(testRoot) }
             val mockKfrs = mockFiles.map { (_, kfr) -> kfr }
             LocalModel(testRoot, testDatabase).use { model ->
                 model.open()

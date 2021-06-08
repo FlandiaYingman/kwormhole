@@ -2,28 +2,28 @@ package top.anagke.kwormhole.service
 
 import org.hibernate.engine.jdbc.BlobProxy
 import org.springframework.stereotype.Service
-import top.anagke.kwormhole.KFR
+import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.dao.ContentEntity
 import top.anagke.kwormhole.dao.ContentRepository
 import top.anagke.kwormhole.dao.RecordEntity
 import top.anagke.kwormhole.dao.RecordRepository
 
 @Service
-class KFRService(
+class KfrService(
     private val recordRepo: RecordRepository,
     private val contentRepo: ContentRepository
 ) {
     //TODO: Transaction!
 
-    fun all(): List<KFR> {
+    fun all(): List<Kfr> {
         return recordRepo.findAll().map { it.toRecord() }
     }
 
-    fun head(path: String): KFR? {
+    fun head(path: String): Kfr? {
         return recordRepo.findById(path).orElseGet { null }?.toRecord()
     }
 
-    fun get(path: String): Pair<KFR, ByteArray>? {
+    fun get(path: String): Pair<Kfr, ByteArray>? {
         val record = recordRepo.findById(path).orElseGet { null }?.toRecord()
         val content = contentRepo.findById(path).orElseGet { null }?.content?.binaryStream?.use { it.readBytes() }
         if ((record == null) != (content == null)) {
@@ -36,7 +36,7 @@ class KFRService(
         }
     }
 
-    fun put(path: String, record: KFR, content: ByteArray) {
+    fun put(path: String, record: Kfr, content: ByteArray) {
         if (path != record.path) {
             TODO("Throw an exception")
         }

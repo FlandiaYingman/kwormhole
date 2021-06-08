@@ -13,7 +13,7 @@ import java.io.File
  * @property hash the hash value of the file's content.
  * @constructor
  */
-data class KFR(
+data class Kfr(
     val path: String,
     val time: Long,
     val size: Long,
@@ -26,22 +26,22 @@ data class KFR(
         const val SIZE_HEADER_NAME = "KFR-Size"
         const val HASH_HEADER_NAME = "KFR-Hash"
 
-        fun File.asKfr(root: File): KFR {
+        fun File.asKfr(root: File): Kfr {
             val path = this.toKfrPath(root)
             val time = utcEpochMillis
             val size = if (this.exists()) this.length() else -1
             val hash = if (this.exists()) Hasher.hash(this) else 0
-            return KFR(path, time, size, hash)
+            return Kfr(path, time, size, hash)
         }
 
     }
 
-    fun isValidTo(other: KFR?): Boolean {
+    fun isValidTo(other: Kfr?): Boolean {
         if (other == null) return true
         return this.time > other.time && !this.contentEquals(other)
     }
 
-    fun contentEquals(other: KFR): Boolean {
+    fun contentEquals(other: Kfr): Boolean {
         check(this.path == other.path) { "paths aren't same: '${this.path}' and '${other.path}" }
         return this.size == other.size && this.hash == other.hash
     }

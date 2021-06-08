@@ -6,10 +6,10 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import top.anagke.kio.createDir
 import top.anagke.kio.deleteDir
-import top.anagke.kwormhole.MockKFR
+import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.test.TEST_DIR
 
-internal class KFRDatabaseTest {
+internal class KfrDatabaseTest {
 
     @BeforeEach
     fun setUp() {
@@ -25,8 +25,8 @@ internal class KFRDatabaseTest {
 
     @Test
     fun put100AtOnce_thenTestAll() {
-        KFRDatabase(databaseFile).use { database ->
-            val expectedKfrs = List(100) { MockKFR.mockRecord() }
+        KfrDatabase(databaseFile).use { database ->
+            val expectedKfrs = List(100) { MockKfr.mockRecord() }
             database.put(expectedKfrs)
             val actualKfrs = database.all()
             assertEquals(expectedKfrs.toSet(), actualKfrs.toSet())
@@ -35,8 +35,8 @@ internal class KFRDatabaseTest {
 
     @Test
     fun put100AtOnce_thenTestGet() {
-        KFRDatabase(databaseFile).use { database ->
-            val expectedKfrs = MutableList(100) { MockKFR.mockRecord() }
+        KfrDatabase(databaseFile).use { database ->
+            val expectedKfrs = MutableList(100) { MockKfr.mockRecord() }
             database.put(expectedKfrs)
             expectedKfrs.forEach { expectedKfr ->
                 assertEquals(expectedKfr, database.get(expectedKfr.path))
@@ -46,8 +46,8 @@ internal class KFRDatabaseTest {
 
     @Test
     fun put100Sequentially_thenTestAll() {
-        KFRDatabase(databaseFile).use { database ->
-            val expectedKfrs = List(100) { MockKFR.mockRecord() }
+        KfrDatabase(databaseFile).use { database ->
+            val expectedKfrs = List(100) { MockKfr.mockRecord() }
             expectedKfrs.forEach { database.put(listOf(it)) }
             val actualKfrs = database.all()
             assertEquals(expectedKfrs.toSet(), actualKfrs.toSet())

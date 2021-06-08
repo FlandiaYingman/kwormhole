@@ -2,7 +2,7 @@ package top.anagke.kwormhole.model
 
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
-import top.anagke.kwormhole.KFR
+import top.anagke.kwormhole.Kfr
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -25,7 +25,7 @@ class RemoteModel(
             return kwormConn
         }
 
-    private val putKfrList = CopyOnWriteArrayList<KFR>()
+    private val putKfrList = CopyOnWriteArrayList<Kfr>()
 
 
     override fun init() {
@@ -48,7 +48,7 @@ class RemoteModel(
     }
 
     @Synchronized
-    private fun submit(it: KFR) {
+    private fun submit(it: Kfr) {
         if (it in putKfrList) {
             putKfrList -= it
         } else {
@@ -61,18 +61,18 @@ class RemoteModel(
     }
 
     @Synchronized
-    override fun put(record: KFR, content: File?) {
+    override fun put(record: Kfr, content: File?) {
         putKfrList += record
         kwormClient.upload(record, content)
     }
 
     @Synchronized
-    override fun getRecord(path: String): KFR? {
+    override fun getRecord(path: String): Kfr? {
         return kwormClient.downloadRecord(path)
     }
 
     @Synchronized
-    override fun getContent(path: String, file: File): KFR? {
+    override fun getContent(path: String, file: File): Kfr? {
         return kwormClient.downloadContent(path, file)
     }
 
@@ -89,17 +89,17 @@ class RemoteModel(
 }
 
 
-fun toHttpHeaders(record: KFR): Headers {
+fun toHttpHeaders(record: Kfr): Headers {
     return mapOf(
-        KFR.SIZE_HEADER_NAME to record.size.toString(),
-        KFR.TIME_HEADER_NAME to record.time.toString(),
-        KFR.HASH_HEADER_NAME to record.hash.toString()
+        Kfr.SIZE_HEADER_NAME to record.size.toString(),
+        Kfr.TIME_HEADER_NAME to record.time.toString(),
+        Kfr.HASH_HEADER_NAME to record.hash.toString()
     ).toHeaders()
 }
 
-fun fromHttpHeaders(path: String, headers: Headers): KFR {
-    val size = headers[KFR.SIZE_HEADER_NAME]!!
-    val time = headers[KFR.TIME_HEADER_NAME]!!
-    val hash = headers[KFR.HASH_HEADER_NAME]!!
-    return KFR(path, time.toLong(), size.toLong(), hash.toLong())
+fun fromHttpHeaders(path: String, headers: Headers): Kfr {
+    val size = headers[Kfr.SIZE_HEADER_NAME]!!
+    val time = headers[Kfr.TIME_HEADER_NAME]!!
+    val hash = headers[Kfr.HASH_HEADER_NAME]!!
+    return Kfr(path, time.toLong(), size.toLong(), hash.toLong())
 }

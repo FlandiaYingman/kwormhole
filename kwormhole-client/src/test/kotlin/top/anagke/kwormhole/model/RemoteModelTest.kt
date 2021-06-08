@@ -3,7 +3,7 @@ package top.anagke.kwormhole.model
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
-import top.anagke.kwormhole.MockKFR
+import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.MockKWormholeServer
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
@@ -60,7 +60,7 @@ internal class RemoteModelTest {
                 RemoteModel(server.host, server.port).use { model ->
                     model.open()
 
-                    val (mockKfr, mockBytes) = MockKFR.mockPair()
+                    val (mockKfr, mockBytes) = MockKfr.mockPair()
                     model.put(mockKfr, mockBytes)
 
                     pollNonnull { model.getRecord(mockKfr.path) }

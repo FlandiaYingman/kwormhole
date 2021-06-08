@@ -31,11 +31,11 @@ class MockKWormholeServer : Closeable {
     val host = "localhost"
     val port = Random.nextInt(10000, 65535)
 
-    val records: MutableList<KFR> = Collections.synchronizedList(mutableListOf())
+    val records: MutableList<Kfr> = Collections.synchronizedList(mutableListOf())
     val contents: MutableList<ByteArray> = Collections.synchronizedList(mutableListOf())
 
-    val changes: BlockingQueue<KFR> = LinkedBlockingQueue()
-    val wsEvents: BlockingQueue<KFR> = LinkedBlockingQueue()
+    val changes: BlockingQueue<Kfr> = LinkedBlockingQueue()
+    val wsEvents: BlockingQueue<Kfr> = LinkedBlockingQueue()
 
     val server: ApplicationEngine = embeddedServer(CIO, host = host, port = port) {
         install(WebSockets)
@@ -50,10 +50,10 @@ class MockKWormholeServer : Closeable {
             route("/kfr/{...}", HttpMethod.Put) {
                 handle {
                     val path = call.request.path().removePrefix("/kfr")
-                    val size = call.request.headers[KFR.SIZE_HEADER_NAME]!!
-                    val time = call.request.headers[KFR.TIME_HEADER_NAME]!!
-                    val hash = call.request.headers[KFR.HASH_HEADER_NAME]!!
-                    val record = KFR(path, time.toLong(), size.toLong(), hash.toLong())
+                    val size = call.request.headers[Kfr.SIZE_HEADER_NAME]!!
+                    val time = call.request.headers[Kfr.TIME_HEADER_NAME]!!
+                    val hash = call.request.headers[Kfr.HASH_HEADER_NAME]!!
+                    val record = Kfr(path, time.toLong(), size.toLong(), hash.toLong())
                     val content = call.receive<ByteArray>()
                     records += record
                     contents += content
@@ -87,12 +87,12 @@ class MockKWormholeServer : Closeable {
     }
 
 
-    fun mockRecord(): KFR {
+    fun mockRecord(): Kfr {
         return mockPair().first
     }
 
-    fun mockPair(): Pair<KFR, ByteArray> {
-        val (record, content) = MockKFR.mockPair()
+    fun mockPair(): Pair<Kfr, ByteArray> {
+        val (record, content) = MockKfr.mockPair()
         records += record
         contents += content
         changes.put(record)
