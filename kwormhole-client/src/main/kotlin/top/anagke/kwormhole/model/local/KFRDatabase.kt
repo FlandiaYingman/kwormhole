@@ -25,7 +25,7 @@ class KFRDatabase(
         HikariDataSource(config)
     }
 
-    private val database = Database.connect(dbPool)
+    private val database by lazy { Database.connect(dbPool) }
 
     init {
         transaction(database) {
