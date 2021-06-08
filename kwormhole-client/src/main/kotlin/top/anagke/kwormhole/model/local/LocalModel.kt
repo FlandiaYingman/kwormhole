@@ -1,21 +1,15 @@
 package top.anagke.kwormhole.model
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
 import org.jetbrains.exposed.dao.Entity
 import org.jetbrains.exposed.dao.EntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
 import top.anagke.kio.deleteFile
 import top.anagke.kwormhole.KFR
 import top.anagke.kwormhole.KFR.Companion.recordAsKFR
-import top.anagke.kwormhole.model.RecordEntity.Companion.fromObj
-import top.anagke.kwormhole.model.RecordEntity.Companion.toObj
+import top.anagke.kwormhole.model.local.KFRDatabase
 import top.anagke.kwormhole.toDiskPath
 import java.io.Closeable
 import java.io.File
@@ -30,7 +24,7 @@ import kotlin.concurrent.thread
 
 class LocalModel(
     private val root: File,
-    private val database: RecordDatabase,
+    private val database: KFRDatabase,
 ) : AbstractModel() {
 
     private val logger = KotlinLogging.logger {}
@@ -203,57 +197,6 @@ private data class FileChangeEvent(
 
 }
 
-
-class RecordDatabase(
-    private val dbFile: File,
-) : Closeable {
-
-    private val dbPool = run {
-        val config = HikariConfig()
-        config.jdbcUrl = "jdbc:sqlite:${dbFile.canonicalPath}"
-        config.driverClassName = "org.sqlite.JDBC"
-        config.maximumPoolSize = 1
-        HikariDataSource(config)
-    }
-
-    private fun openDb() = Database.connect(dbPool)
-
-    init {
-        transaction(openDb()) {
-            SchemaUtils.create(RecordTable)
-        }
-    }
-
-    fun all(): List<KFR> {
-        return transaction(openDb()) {
-            RecordEntity.all().map { it.toObj() }.toList()
-        }
-    }
-
-    fun put(records: Collection<KFR>) {
-        transaction(openDb()) {
-            for (record in records) {
-                val recordEntity = RecordEntity.findById(record.path)
-                if (recordEntity == null) {
-                    RecordEntity.new(record.path) { this.fromObj(record) }
-                } else {
-                    recordEntity.fromObj(record)
-                }
-            }
-        }
-    }
-
-    fun get(path: String): KFR? {
-        return transaction(openDb()) {
-            RecordEntity.findById(path)?.toObj()
-        }
-    }
-
-    override fun close() {
-        dbPool.close()
-    }
-
-}
 
 object RecordTable : IdTable<String>("file_record") {
     override val id: Column<EntityID<String>> = varchar("path", 1024).uniqueIndex().entityId()
