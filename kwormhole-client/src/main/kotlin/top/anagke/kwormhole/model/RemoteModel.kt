@@ -11,10 +11,10 @@ class RemoteModel(
     private val port: Int
 ) : AbstractModel() {
 
-    private val kwormClient: KWormClient = KWormClient(host, port)
+    private val kwormClient: KfrClient = KfrClient(host, port)
 
-    private var _kwormConnection: KWormConnection? = null
-    private val kwormConnection: KWormConnection
+    private var _kwormConnection: KfrConnection? = null
+    private val kwormConnection: KfrConnection
         get() {
             var kwormConn = _kwormConnection
             if (kwormConn == null || !kwormConn.open) {

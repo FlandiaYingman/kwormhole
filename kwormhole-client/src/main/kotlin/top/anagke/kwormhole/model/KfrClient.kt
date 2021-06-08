@@ -24,7 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue
 /**
  * The network client of KWormhole.
  */
-class KWormClient(
+class KfrClient(
     private val serverHost: String,
     private val serverPort: Int,
 ) {
@@ -44,7 +44,7 @@ class KWormClient(
      * @param before require to fetch and listen all records before this time
      * @param after require to fetch and listen all records after this time
      */
-    fun openConnection(before: Long? = null, after: Long? = null): KWormConnection {
+    fun openConnection(before: Long? = null, after: Long? = null): KfrConnection {
         val url = newUrlBuilder()
             .addPathSegments("all")
             .apply { if (before != null) addQueryParameter("before", before.toString()) }
@@ -53,7 +53,7 @@ class KWormClient(
         val request = Request.Builder()
             .url(url)
             .build()
-        return KWormConnection().apply { this.ws = client.newWebSocket(request, this) }
+        return KfrConnection().apply { this.ws = client.newWebSocket(request, this) }
     }
 
 
@@ -134,7 +134,7 @@ class KWormClient(
 
 }
 
-class KWormConnection : WebSocketListener(), Closeable {
+class KfrConnection : WebSocketListener(), Closeable {
 
     var open: Boolean = true
         private set

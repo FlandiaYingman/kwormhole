@@ -44,7 +44,7 @@ class KfrNotFoundException(pathNotFound: String) : Exception("$pathNotFound not 
 
 
 @RestController
-internal class KwormController(
+internal class KfrController(
     private val kfrService: KfrService
 ) {
 

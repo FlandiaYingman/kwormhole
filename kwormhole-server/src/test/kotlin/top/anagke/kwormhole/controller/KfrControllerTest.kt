@@ -20,7 +20,7 @@ import kotlin.random.Random
 @Transactional
 @SpringBootTest
 @AutoConfigureMockMvc
-class KwormControllerTest {
+class KfrControllerTest {
 
     @Autowired
     private lateinit var mvc: MockMvc
