@@ -1,10 +1,12 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.model.remote
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.MockKWormholeServer
+import top.anagke.kwormhole.model.getContent
+import top.anagke.kwormhole.model.put
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
 import top.anagke.kwormhole.test.useDir

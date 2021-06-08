@@ -1,4 +1,4 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.model.remote
 
 import com.google.gson.Gson
 import com.google.gson.JsonParseException

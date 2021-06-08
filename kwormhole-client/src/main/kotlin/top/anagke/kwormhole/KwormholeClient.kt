@@ -3,7 +3,7 @@ package top.anagke.kwormhole
 import com.xenomachina.argparser.ArgParser
 import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.model.local.KfrDatabase
-import top.anagke.kwormhole.model.RemoteModel
+import top.anagke.kwormhole.model.remote.RemoteModel
 import top.anagke.kwormhole.sync.Synchronizer
 import java.io.Closeable
 import java.io.File

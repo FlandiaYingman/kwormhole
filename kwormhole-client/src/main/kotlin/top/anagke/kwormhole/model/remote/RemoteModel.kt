@@ -1,8 +1,9 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.model.remote
 
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.model.AbstractModel
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 

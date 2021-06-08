@@ -18,7 +18,7 @@ import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.websocket.WebSockets
 import io.ktor.websocket.webSocket
-import top.anagke.kwormhole.model.toHttpHeaders
+import top.anagke.kwormhole.model.remote.toHttpHeaders
 import java.io.Closeable
 import java.util.*
 import java.util.concurrent.BlockingQueue
