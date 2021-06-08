@@ -1,15 +1,10 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.model.local
 
 import mu.KotlinLogging
-import org.jetbrains.exposed.dao.Entity
-import org.jetbrains.exposed.dao.EntityClass
-import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.dao.id.IdTable
-import org.jetbrains.exposed.sql.Column
 import top.anagke.kio.deleteFile
 import top.anagke.kwormhole.KFR
 import top.anagke.kwormhole.KFR.Companion.recordAsKFR
-import top.anagke.kwormhole.model.local.KFRDatabase
+import top.anagke.kwormhole.model.AbstractModel
 import top.anagke.kwormhole.toDiskPath
 import java.io.Closeable
 import java.io.File
@@ -194,37 +189,5 @@ private data class FileChangeEvent(
         }
 
     }
-
-}
-
-
-object RecordTable : IdTable<String>("file_record") {
-    override val id: Column<EntityID<String>> = varchar("path", 1024).uniqueIndex().entityId()
-    override val primaryKey by lazy { super.primaryKey ?: PrimaryKey(id) }
-    val size = long("size")
-    val time = long("time")
-    val hash = long("hash")
-}
-
-class RecordEntity(id: EntityID<String>) : Entity<String>(id) {
-
-    companion object : EntityClass<String, RecordEntity>(RecordTable) {
-        fun RecordEntity.fromObj(record: KFR) {
-            require(this.path == record.path) { "The path ${this.path} and ${record.path} are required to be same." }
-            size = record.size
-            time = record.time
-            hash = record.hash
-        }
-
-        fun RecordEntity.toObj(): KFR {
-            return KFR(path, time, size, hash)
-        }
-
-    }
-
-    val path = this.id.value
-    var size by RecordTable.size
-    var time by RecordTable.time
-    var hash by RecordTable.hash
 
 }

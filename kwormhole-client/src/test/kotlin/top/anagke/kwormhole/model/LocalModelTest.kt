@@ -10,6 +10,7 @@ import top.anagke.kio.notExists
 import top.anagke.kwormhole.KFR
 import top.anagke.kwormhole.MockKFR
 import top.anagke.kwormhole.model.local.KFRDatabase
+import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
