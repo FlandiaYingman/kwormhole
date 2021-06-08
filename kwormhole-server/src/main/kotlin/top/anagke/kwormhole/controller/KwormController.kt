@@ -12,11 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import top.anagke.kwormhole.FileRecord
-import top.anagke.kwormhole.FileRecord.Companion.HASH_HEADER_NAME
-import top.anagke.kwormhole.FileRecord.Companion.SIZE_HEADER_NAME
-import top.anagke.kwormhole.FileRecord.Companion.TIME_HEADER_NAME
-import top.anagke.kwormhole.asBytes
+import top.anagke.kwormhole.KFR
+import top.anagke.kwormhole.KFR.Companion.HASH_HEADER_NAME
+import top.anagke.kwormhole.KFR.Companion.SIZE_HEADER_NAME
+import top.anagke.kwormhole.KFR.Companion.TIME_HEADER_NAME
 import top.anagke.kwormhole.service.KFRService
 import java.util.*
 import javax.servlet.http.HttpServletRequest
@@ -24,7 +23,7 @@ import javax.servlet.http.HttpServletResponse
 
 private fun HttpServletRequest.kfrPath() = this.servletPath.removePrefix("/kfr")
 
-private fun FileRecord.toHttpHeaders(): Map<String, String> {
+private fun KFR.toHttpHeaders(): Map<String, String> {
     return mapOf(
         SIZE_HEADER_NAME to size.toString(),
         TIME_HEADER_NAME to time.toString(),
@@ -32,12 +31,12 @@ private fun FileRecord.toHttpHeaders(): Map<String, String> {
     )
 }
 
-private fun Map<String, String>.fromHeadersMap(path: String): FileRecord {
+private fun Map<String, String>.fromHeadersMap(path: String): KFR {
     val mapCaseInsensitive = TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER).also { it.putAll(this) }
     val size = mapCaseInsensitive[SIZE_HEADER_NAME]!!.toLong()
     val time = mapCaseInsensitive[TIME_HEADER_NAME]!!.toLong()
     val hash = mapCaseInsensitive[HASH_HEADER_NAME]!!.toLong()
-    return FileRecord(path, size, time, hash)
+    return KFR(path, time, size, hash)
 }
 
 @ResponseStatus(value = HttpStatus.NOT_FOUND, reason = "KFR not found")
@@ -74,7 +73,7 @@ internal class KwormController(
         record.toHttpHeaders().forEach { (name, value) -> response.addHeader(name, value) }
 
         logger.info { "GET ${request.servletPath}, response $record and content" }
-        return content.asBytes()
+        return content
     }
 
 

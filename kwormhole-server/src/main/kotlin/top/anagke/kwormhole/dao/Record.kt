@@ -1,7 +1,7 @@
 package top.anagke.kwormhole.dao
 
 import org.springframework.data.jpa.repository.JpaRepository
-import top.anagke.kwormhole.FileRecord
+import top.anagke.kwormhole.KFR
 import javax.persistence.Entity
 import javax.persistence.Id
 
@@ -14,9 +14,9 @@ data class RecordEntity(
     val hash: Long,
 ) {
 
-    constructor(record: FileRecord) : this(record.path, record.size, record.time, record.hash)
+    constructor(record: KFR) : this(record.path, record.size, record.time, record.hash)
 
-    fun toRecord() = FileRecord(path, size, time, hash)
+    fun toRecord() = KFR(path, time, size, hash)
 
 }
 

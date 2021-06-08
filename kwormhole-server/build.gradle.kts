@@ -24,4 +24,11 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging:2.0.3")
 
     runtimeOnly("com.h2database:h2")
+
+    testImplementation("top.anagke:kio:0.1.0")
+    testImplementation(project(":kwormhole-client"))
+    testImplementation("com.squareup.okhttp3:okhttp:4.9.1")
+    testImplementation("com.squareup.okhttp3:okhttp-sse:4.9.1")
+    testImplementation("com.squareup.moshi:moshi:1.12.0")
+    testImplementation("com.squareup.moshi:moshi-kotlin:1.12.0")
 }

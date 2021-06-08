@@ -26,7 +26,7 @@ data class KFR(
         const val SIZE_HEADER_NAME = "KFR-Size"
         const val HASH_HEADER_NAME = "KFR-Hash"
 
-        fun File.record(root: File): KFR {
+        fun File.recordAsKFR(root: File): KFR {
             val path = this.toRecordPath(root)
             val time = utcEpochMillis
             val size = if (this.exists()) this.length() else -1
@@ -42,12 +42,16 @@ data class KFR(
     }
 
     fun contentEquals(other: KFR): Boolean {
-        if (this.representsDeleted() && other.representsDeleted()) return true
+        check(this.path == other.path) { "paths aren't same: '${this.path}' and '${other.path}" }
         return this.size == other.size && this.hash == other.hash
     }
 
-    fun representsDeleted(): Boolean {
+    fun representsNotExisting(): Boolean {
         return size == -1L && hash == 0L
+    }
+
+    fun representsExisting(): Boolean {
+        return !(size == -1L && hash == 0L)
     }
 
 }

@@ -11,6 +11,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
+    implementation("top.anagke:kio:0.1.0")
 
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.github.microutils:kotlin-logging:2.0.4")

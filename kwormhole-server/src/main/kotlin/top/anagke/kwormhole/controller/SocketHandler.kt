@@ -10,7 +10,7 @@ import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
 import org.springframework.web.util.UriComponentsBuilder
-import top.anagke.kwormhole.FileRecord
+import top.anagke.kwormhole.KFR
 import top.anagke.kwormhole.service.KFRService
 import java.util.*
 
@@ -49,7 +49,7 @@ class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
     }
 
 
-    private fun WebSocketSession.sendRecord(record: FileRecord) {
+    private fun WebSocketSession.sendRecord(record: KFR) {
         val uriComponents = UriComponentsBuilder.fromUri(uri!!).build()
         val before = uriComponents.queryParams["before"]?.first()?.toLong() ?: Long.MAX_VALUE
         val after = uriComponents.queryParams["after"]?.first()?.toLong() ?: Long.MIN_VALUE
@@ -63,5 +63,5 @@ class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
 
 class RepoEvent(
     source: Any,
-    val record: FileRecord
+    val record: KFR
 ) : ApplicationEvent(source)

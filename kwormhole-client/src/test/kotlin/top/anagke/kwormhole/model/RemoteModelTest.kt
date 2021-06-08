@@ -1,40 +1,78 @@
 package top.anagke.kwormhole.model
 
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import top.anagke.kwormhole.MockKfr
-import top.anagke.kwormhole.MockKwormholeServer
-import top.anagke.kwormhole.asBytes
+import org.junit.jupiter.api.Timeout
+import top.anagke.kwormhole.MockKFR
+import top.anagke.kwormhole.MockKWormholeServer
+import top.anagke.kwormhole.test.TEST_DIR
+import top.anagke.kwormhole.test.pollNonnull
+import top.anagke.kwormhole.test.useDir
+import java.util.concurrent.TimeUnit
 
+@Timeout(5, unit = TimeUnit.SECONDS)
 internal class RemoteModelTest {
 
     @Test
-    fun testRemoteModel() {
-        MockKwormholeServer().use { server ->
-            val (expectedRecord1, expectedContent1) = server.mockBoth()
-            RemoteModel(server.host, server.port).use { model ->
-                val path1 = model.changes.take()
-                val actualRecord1 = model.records[path1]!!
-                val actualContent1 = model.contents[path1]!!.invoke()
-                Assertions.assertEquals(expectedRecord1, actualRecord1)
-                Assertions.assertArrayEquals(expectedContent1.asBytes(), actualContent1.asBytes())
+    fun init_get() {
+        TEST_DIR.useDir {
+            MockKWormholeServer().use { server ->
+                val (mockKfr, mockBytes) = server.mockPair()
+                RemoteModel(server.host, server.port).use { model ->
+                    model.open()
 
-                val (expectedRecord2, expectedContent2) = server.mockBoth()
-                val path2 = model.changes.take()
-                val actualRecord2 = model.records[path2]!!
-                val actualContent2 = model.contents[path2]!!.invoke()
-                Assertions.assertEquals(expectedRecord2, actualRecord2)
-                Assertions.assertArrayEquals(expectedContent2.asBytes(), actualContent2.asBytes())
+                    val change = model.changes.take()
+                    val kfr = model.getRecord(mockKfr.path)
+                    val (_, bytes) = model.getContent(mockKfr.path)
+                    assertEquals(mockKfr, change)
+                    assertEquals(mockKfr, kfr)
+                    assertArrayEquals(mockBytes, bytes)
+                }
+            }
+        }
+    }
 
-                server.changes.take() // clean last 2 requests
-                server.changes.take()
+    @Test
+    fun poll_get() {
+        TEST_DIR.useDir {
+            MockKWormholeServer().use { server ->
+                val (dummy, _) = server.mockPair()
+                RemoteModel(server.host, server.port).use { model ->
+                    model.open()
+                    assertEquals(dummy, model.changes.take())
 
-                val (expectedRecord3, expectedContent3) = MockKfr.mockBoth()
-                model.put(expectedRecord3, expectedContent3)
-                val actualRecord3 = server.changes.take()
-                val actualContent3 = server.contents[server.records.indexOf(actualRecord3)]
-                Assertions.assertEquals(expectedRecord3, actualRecord3)
-                Assertions.assertArrayEquals(expectedContent3.asBytes(), actualContent3.asBytes())
+                    val (mockKfr, mockBytes) = server.mockPair()
+                    val change = model.changes.take()
+                    val kfr = model.getRecord(mockKfr.path)
+                    val (_, bytes) = model.getContent(mockKfr.path)
+                    assertEquals(mockKfr, change)
+                    assertEquals(mockKfr, kfr)
+                    assertArrayEquals(mockBytes, bytes)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun put_get() {
+        TEST_DIR.useDir {
+            MockKWormholeServer().use { server ->
+                RemoteModel(server.host, server.port).use { model ->
+                    model.open()
+
+                    val (mockKfr, mockBytes) = MockKFR.mockPair()
+                    model.put(mockKfr, mockBytes)
+
+                    pollNonnull { model.getRecord(mockKfr.path) }
+
+                    val kfr = model.getRecord(mockKfr.path)
+                    val (_, bytes) = model.getContent(mockKfr.path)
+                    assertEquals(mockKfr, kfr)
+                    assertArrayEquals(mockBytes, bytes)
+
+                    val change = model.changes.poll()
+                    assertNull(change)
+                }
             }
         }
     }

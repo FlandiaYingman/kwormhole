@@ -2,7 +2,9 @@ package top.anagke.kwormhole.sync
 
 import mu.KotlinLogging
 import top.anagke.kwormhole.model.Model
+import top.anagke.kwormhole.util.TempFiles
 import java.io.Closeable
+import java.io.File
 import java.util.concurrent.CyclicBarrier
 import kotlin.concurrent.thread
 
@@ -11,6 +13,8 @@ class Synchronizer(
     private val dstModel: Model,
 ) : Closeable {
 
+    private val tempDir = File("TEMP")
+
     private val logger = KotlinLogging.logger { }
 
     private val runner: Thread = thread(start = false, block = this::run)
@@ -18,6 +22,8 @@ class Synchronizer(
     private val barrier = CyclicBarrier(2)
 
     init {
+        TempFiles.register(tempDir)
+
         runner.start()
         barrier.await()
     }
@@ -36,10 +42,27 @@ class Synchronizer(
 
     private fun loop() {
         val srcChange = srcModel.changes.take()
-        val srcChangeRecord = srcModel.records[srcChange]!!
-        val srcChangeContent = srcModel.contents[srcChange]!!
-        dstModel.put(srcChangeRecord, srcChangeContent())
+        val path = srcChange.path
+
+        val srcChangeRecord = srcModel.getRecord(path)
+        if (srcChangeRecord == null) {
+            return
+        }
+        if (srcChange != srcChangeRecord) return
+
+
+        val srcChangeContentPath = TempFiles.allocTempFile(tempDir)
+        val srcChangeContent = srcModel.getContent(path, srcChangeContentPath)
+        if (srcChangeContent == null) {
+            return
+        }
+        if (srcChangeRecord != srcChangeContent) return
+
+
+        dstModel.put(srcChangeRecord, srcChangeContentPath)
         logger.info { "Sync change from $srcModel to $dstModel: '$srcChange'" }
+
+        TempFiles.freeTempFile(srcChangeContentPath)
     }
 
 

@@ -2,23 +2,49 @@ package top.anagke.kwormhole
 
 import com.xenomachina.argparser.ArgParser
 import top.anagke.kwormhole.model.LocalModel
+import top.anagke.kwormhole.model.Model
 import top.anagke.kwormhole.model.RecordDatabase
 import top.anagke.kwormhole.model.RemoteModel
 import top.anagke.kwormhole.sync.Synchronizer
+import java.io.Closeable
 import java.io.File
 
 fun main(args: Array<String>) {
     val parsedArgs = ArgParser(args).parseInto(::Args)
 
-    val database = RecordDatabase(File("./kwormhole.db"))
-    val localModel = LocalModel(File(parsedArgs.root), database)
-    val remoteModel = RemoteModel(parsedArgs.serverHost, parsedArgs.serverPort)
+ //   KwormholeClient(parsedArgs.root,parsedArgs.database, parsedArgs.serverHost, parsedArgs.serverPort)
+}
 
-    val uploader = Synchronizer(localModel, remoteModel)
-    val downloader = Synchronizer(remoteModel, localModel)
+class KwormholeClient(
+    root: String,
+    database: String,
+    serverHost: String,
+    serverPort: Int
+) : Closeable {
 
-    localModel.start()
-    remoteModel.start()
+    private var localModel: LocalModel? = null
+    private var remoteModel: RemoteModel? = null
+    private var uploader: Synchronizer? = null
+    private var downloader: Synchronizer? = null
+
+
+    init {
+        localModel = LocalModel(File(root), RecordDatabase(File(database)))
+        remoteModel = RemoteModel(serverHost, serverPort)
+        uploader = Synchronizer(localModel!!, remoteModel!!)
+        downloader = Synchronizer(remoteModel!!, localModel!!)
+
+        localModel!!.open()
+        remoteModel!!.open()
+    }
+
+    override fun close() {
+        localModel?.close()
+        remoteModel?.close()
+        uploader?.close()
+        downloader?.close()
+    }
+
 }
 
 private class Args(parser: ArgParser) {

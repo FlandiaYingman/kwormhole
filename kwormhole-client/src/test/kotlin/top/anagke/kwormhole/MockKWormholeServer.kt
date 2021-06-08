@@ -23,40 +23,42 @@ import java.io.Closeable
 import java.util.*
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.random.Random
 
 @Suppress("BlockingMethodInNonBlockingContext")
-class MockKwormholeServer : Closeable {
+class MockKWormholeServer : Closeable {
 
     val host = "localhost"
-    val port = 8080
+    val port = Random.nextInt(10000, 65535)
 
-    val records: MutableList<FileRecord> = Collections.synchronizedList(mutableListOf())
-    val contents: MutableList<FileContent> = Collections.synchronizedList(mutableListOf())
+    val records: MutableList<KFR> = Collections.synchronizedList(mutableListOf())
+    val contents: MutableList<ByteArray> = Collections.synchronizedList(mutableListOf())
 
-    val changes: BlockingQueue<FileRecord> = LinkedBlockingQueue()
-    val wsQueue: BlockingQueue<FileRecord> = LinkedBlockingQueue()
+    val changes: BlockingQueue<KFR> = LinkedBlockingQueue()
+    val wsEvents: BlockingQueue<KFR> = LinkedBlockingQueue()
 
     val server: ApplicationEngine = embeddedServer(CIO, host = host, port = port) {
         install(WebSockets)
         routing {
             webSocket("/all") {
-                while (true) {
-                    val record = wsQueue.take()
-                    outgoing.send(Frame.Text(Gson().toJson(record)))
+                while (!Thread.interrupted()) {
+                    val record = wsEvents.take()
+                    val json = Gson().toJson(record)
+                    outgoing.send(Frame.Text(json))
                 }
             }
             route("/kfr/{...}", HttpMethod.Put) {
                 handle {
                     val path = call.request.path().removePrefix("/kfr")
-                    val size = call.request.headers[FileRecord.SIZE_HEADER_NAME]!!
-                    val time = call.request.headers[FileRecord.TIME_HEADER_NAME]!!
-                    val hash = call.request.headers[FileRecord.HASH_HEADER_NAME]!!
-                    val record = FileRecord(path, size.toLong(), time.toLong(), hash.toLong())
-                    val content = MemoryFileContent(call.receive())
+                    val size = call.request.headers[KFR.SIZE_HEADER_NAME]!!
+                    val time = call.request.headers[KFR.TIME_HEADER_NAME]!!
+                    val hash = call.request.headers[KFR.HASH_HEADER_NAME]!!
+                    val record = KFR(path, time.toLong(), size.toLong(), hash.toLong())
+                    val content = call.receive<ByteArray>()
                     records += record
                     contents += content
                     changes.put(record)
-                    wsQueue.put(record)
+                    wsEvents.put(record)
                     call.respond(HttpStatusCode.OK)
                 }
             }
@@ -72,7 +74,7 @@ class MockKwormholeServer : Closeable {
                         if (call.request.httpMethod == HttpMethod.Head) {
                             call.respond(HttpStatusCode.OK)
                         } else {
-                            call.respond(HttpStatusCode.OK, content.asBytes())
+                            call.respond(HttpStatusCode.OK, content)
                         }
                     }
                 }
@@ -85,16 +87,16 @@ class MockKwormholeServer : Closeable {
     }
 
 
-    fun mockRecord(): FileRecord {
-        return mockBoth().first
+    fun mockRecord(): KFR {
+        return mockPair().first
     }
 
-    fun mockBoth(): Pair<FileRecord, FileContent> {
-        val (record, content) = MockKfr.mockBoth()
+    fun mockPair(): Pair<KFR, ByteArray> {
+        val (record, content) = MockKFR.mockPair()
         records += record
         contents += content
         changes.put(record)
-        wsQueue.put(record)
+        wsEvents.put(record)
         return record to content
     }
 
