@@ -1,4 +1,4 @@
-package top.anagke.kwormhole.model
+package top.anagke.kwormhole.model.local
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -9,8 +9,6 @@ import top.anagke.kio.deleteFile
 import top.anagke.kio.notExists
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.MockKfr
-import top.anagke.kwormhole.model.local.KfrDatabase
-import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
