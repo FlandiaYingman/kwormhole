@@ -1,7 +1,5 @@
 package top.anagke.kwormhole.model.local
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.dao.Entity
 import org.jetbrains.exposed.dao.EntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -9,6 +7,7 @@ import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import top.anagke.kwormhole.Kfr
 import java.io.Closeable
@@ -18,15 +17,7 @@ class KfrDatabase(
     private val dbFile: File,
 ) : Closeable {
 
-    private val dbPool = run {
-        val config = HikariConfig()
-        config.jdbcUrl = "jdbc:sqlite:${dbFile.canonicalPath}"
-        config.driverClassName = "org.sqlite.JDBC"
-        config.maximumPoolSize = 1
-        HikariDataSource(config)
-    }
-
-    private val database by lazy { Database.connect(dbPool) }
+    private val database by lazy { Database.connect("jdbc:sqlite:${dbFile}") }
 
     init {
         transaction(database) {
@@ -71,7 +62,7 @@ class KfrDatabase(
     }
 
     override fun close() {
-        dbPool.close()
+        TransactionManager.closeAndUnregister(database)
     }
 
 }
