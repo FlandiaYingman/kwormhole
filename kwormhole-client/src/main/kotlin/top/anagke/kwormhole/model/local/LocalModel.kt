@@ -1,104 +1,72 @@
 package top.anagke.kwormhole.model.local
 
 import mu.KotlinLogging
-import top.anagke.kio.deleteFile
+import top.anagke.kio.notExists
 import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.Kfr.Companion.asKfr
 import top.anagke.kwormhole.model.AbstractModel
-import top.anagke.kwormhole.resolveBy
+import top.anagke.kwormhole.toKfrPath
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 
-class LocalModel(
-    private val root: File,
-    private val database: KfrDatabase,
-) : AbstractModel() {
+class LocalModel(val kfrService: KfrService) : AbstractModel() {
 
     private val logger = KotlinLogging.logger {}
+
+
+    private val root = kfrService.root
 
     private val monitor = FileAltMonitor(root)
 
 
     override fun init() {
-        val databasePathList = database.all()
-            .map { it.path.resolveBy(root) }
-            .map { it.canonicalFile }
-        val rootPathList = root.walk()
-            .filter { it != root }
-            .filter { it.isFile }
-            .map { it.canonicalFile }
-        val files = (databasePathList + rootPathList)
-            .distinct()
-            .toList()
-        submitFile(files)
+        kfrService.registerListener { changes.put(it) }
+
+        val filePathSeq = root.walk()
+            .filter { it.isFile || it.notExists() }
+            .map { it.toKfrPath(root) }
+        val databasePathSeq = kfrService.all()
+            .map { it.path }
+        kfrService.sync((filePathSeq + databasePathSeq).toList())
     }
 
     override fun poll() {
-        val changes = monitor.take()
-        submitFile(changes)
-    }
-
-    @Synchronized
-    private fun submitFile(files: List<File>) {
-        val kfrs = files.map { it.asKfr(root) }
-        val validKfrs = kfrs.asSequence()
-            .filter { it.isValid() }
-            .toList()
-        validKfrs.forEach { changes.put(it) }
-        database.put(validKfrs)
+        val poll = monitor.take()
+            .map { it.toKfrPath(root) }
+        kfrService.sync(poll)
     }
 
 
-    @Synchronized
     override fun getRecord(path: String): Kfr? {
-        return database.get(path)
+        return kfrService.get(path).first
     }
 
-    @Synchronized
-    override fun getContent(path: String, file: File): Kfr? {
-        val kfr = getRecord(path) ?: return null
+    override fun getContent(path: String, dst: File): Kfr? {
+        val (kfr, src) = kfrService.get(path)
+        if (kfr == null) return null
         if (kfr.representsExisting()) {
-            val diskPath = kfr.path.resolveBy(root)
-            diskPath.copyTo(file, overwrite = true)
+            Files.copy(src!!.toPath(), dst.toPath(), REPLACE_EXISTING)
         } else {
-            file.deleteFile()
+            Files.delete(dst.toPath())
         }
         return kfr
     }
 
 
-    @Synchronized
     override fun where(path: String): File {
-        val diskPath = path.resolveBy(root)
-        val diskTempPath = diskPath.resolveSibling("${diskPath.name}.__temp")
-        return diskTempPath
+        TODO("Deprecated")
     }
 
-    @Synchronized
     override fun put(record: Kfr, content: File?) {
-        if (record.isValid()) {
-            logger.info { "Putting KFR $record" }
-            val diskPath = record.path.resolveBy(root)
-            if (record.representsExisting()) {
-                content!!
-                if (diskPath.parentFile.canonicalFile != content.parentFile.canonicalFile && content.name.endsWith(".__temp")) {
-                    content.renameTo(diskPath)
-                } else {
-                    content.copyTo(diskPath, overwrite = true)
-                }
-            } else {
-                diskPath.deleteFile()
-            }
-            changes.put(record)
-            database.put(listOf(record))
-        }
+        kfrService.put(record, content)
     }
 
 
     override fun close() {
         super.close()
         monitor.close()
-        database.close()
+        kfrService.close()
     }
 
     override fun toString(): String {

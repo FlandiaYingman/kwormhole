@@ -3,6 +3,7 @@ package top.anagke.kwormhole
 import com.xenomachina.argparser.ArgParser
 import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.model.local.KfrDatabase
+import top.anagke.kwormhole.model.local.KfrService
 import top.anagke.kwormhole.model.remote.RemoteModel
 import top.anagke.kwormhole.sync.Synchronizer
 import java.io.Closeable
@@ -28,7 +29,7 @@ class KwormholeClient(
 
 
     init {
-        localModel = LocalModel(File(root), KfrDatabase(File(database)))
+        localModel = LocalModel(KfrService(File(root), KfrDatabase(File(database))))
         remoteModel = RemoteModel(serverHost, serverPort)
         uploader = Synchronizer(localModel!!, remoteModel!!)
         downloader = Synchronizer(remoteModel!!, localModel!!)

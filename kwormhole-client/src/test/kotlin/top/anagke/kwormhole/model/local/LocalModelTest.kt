@@ -40,7 +40,7 @@ internal class LocalModelTest {
     fun init_fromDisk() {
         TEST_DIR.useDir {
             val (_, expectedKfr) = MockKfr.mockOnRandomFile(testRoot)
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 val actualKfr = model.changes.take()
                 assertTrue(expectedKfr.contentEquals(actualKfr))
@@ -54,7 +54,7 @@ internal class LocalModelTest {
             val (_, expectedKfr) = MockKfr.mockOnRandomFile(testRoot)
             val database = testDatabase
             database.put(listOf(expectedKfr))
-            LocalModel(testRoot, database).use { model ->
+            LocalModel(KfrService(testRoot, database)).use { model ->
                 model.open()
                 val actualKfr = pollNonnull { model.getRecord(expectedKfr.path) }
                 assertEquals(expectedKfr, actualKfr)
@@ -69,7 +69,7 @@ internal class LocalModelTest {
             testFile.bytes = Random.nextBytes(64)
             val database = testDatabase
             database.put(listOf(testKfr))
-            LocalModel(testRoot, database).use { model ->
+            LocalModel(KfrService(testRoot, database)).use { model ->
                 model.open()
                 val actualKfr = model.changes.take()
                 assertTrue(actualKfr.isValidTo(testKfr))
@@ -82,7 +82,7 @@ internal class LocalModelTest {
     fun monitor_createFile() {
         TEST_DIR.useDir {
             val (_, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 assertTrue(dummyKfr.contentEquals(model.changes.take()))
 
@@ -97,7 +97,7 @@ internal class LocalModelTest {
     fun monitor_modifyFile() {
         TEST_DIR.useDir {
             val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 assertTrue(testKfr.contentEquals(model.changes.take()))
 
@@ -113,7 +113,7 @@ internal class LocalModelTest {
     fun monitor_deleteFile() {
         TEST_DIR.useDir {
             val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 assertTrue(testKfr.contentEquals(model.changes.take()))
 
@@ -129,7 +129,7 @@ internal class LocalModelTest {
     @Test
     fun putCreate_get() {
         TEST_DIR.useDir {
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
 
                 //PUT
@@ -153,7 +153,7 @@ internal class LocalModelTest {
     fun putDelete_get() {
         TEST_DIR.useDir {
             val (dummyFile, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 assertTrue(dummyKfr.contentEquals(model.changes.take()))
 
@@ -183,7 +183,7 @@ internal class LocalModelTest {
         TEST_DIR.useDir {
             val mockFiles = List(fileCount) { MockKfr.mockOnRandomFile(testRoot) }
             val mockKfrs = mockFiles.map { (_, kfr) -> kfr }
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 repeat(fileCount) {
                     val tookKfr = model.changes.take()
@@ -209,7 +209,7 @@ internal class LocalModelTest {
         TEST_DIR.useDir {
             val mockFiles = List(fileCount) { MockKfr.mockOnRandomFile(testRoot) }
             val mockKfrs = mockFiles.map { (_, kfr) -> kfr }
-            LocalModel(testRoot, testDatabase).use { model ->
+            LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 repeat(fileCount) {
                     val tookKfr = model.changes.take()
