@@ -62,7 +62,7 @@ object TempFiles {
     @Synchronized
     fun freeTempFile(tempFile: Path) {
         if (tempFile.isAllocated()) {
-            Files.delete(tempFile)
+            Files.deleteIfExists(tempFile)
         }
     }
 
