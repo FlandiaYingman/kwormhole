@@ -54,10 +54,6 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
     }
 
 
-    override fun where(path: String): File {
-        TODO("Deprecated")
-    }
-
     override fun put(record: Kfr, content: File?) {
         kfrService.put(record, content)
     }

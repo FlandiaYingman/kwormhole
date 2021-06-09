@@ -57,10 +57,6 @@ class RemoteModel(
         }
     }
 
-    override fun where(path: String): File? {
-        return null
-    }
-
     @Synchronized
     override fun put(record: Kfr, content: File?) {
         putKfrList += record

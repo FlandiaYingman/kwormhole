@@ -23,8 +23,6 @@ interface Model : Closeable {
     val changes: BlockingQueue<Kfr>
 
 
-    fun where(path: String): File?
-
     /**
      * Puts a record and the corresponding content to this model.
      * @param record the record to be put
