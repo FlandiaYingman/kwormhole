@@ -48,6 +48,15 @@ class KfrDatabase(
         }
     }
 
+    fun get(paths: List<String>): List<Kfr?> {
+        return transaction {
+            paths.map { path ->
+                KfrEntity.findById(path)
+                    ?.toKfr()
+            }
+        }
+    }
+
     fun put(records: Collection<Kfr>) {
         transaction(database) {
             for (record in records) {
