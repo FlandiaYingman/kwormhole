@@ -3,14 +3,27 @@ package top.anagke.kwormhole.model.remote
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.model.AbstractModel
-import java.io.File
+import top.anagke.kwormhole.util.TempFiles
+import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 
 class RemoteModel(
     private val host: String,
     private val port: Int
 ) : AbstractModel() {
+
+    companion object {
+
+        val KFR_TEMP = Path.of("KFR_TEMP")
+
+        init {
+            TempFiles.register(KFR_TEMP)
+        }
+
+    }
+
 
     private val kwormClient: KfrClient = KfrClient(host, port)
 
@@ -58,9 +71,13 @@ class RemoteModel(
     }
 
     @Synchronized
-    override fun put(record: Kfr, content: File?) {
-        putKfrList += record
-        kwormClient.upload(record, content)
+    override fun put(fatKfr: FatKfr) {
+        putKfrList += fatKfr.kfr
+
+        TempFiles.useTempFile(KFR_TEMP) { temp ->
+            fatKfr.actualize(temp)
+            kwormClient.upload(fatKfr.kfr, temp.toFile())
+        }
     }
 
     @Synchronized
@@ -69,8 +86,15 @@ class RemoteModel(
     }
 
     @Synchronized
-    override fun getContent(path: String, file: File): Kfr? {
-        return kwormClient.downloadContent(path, file)
+    override fun getContent(path: String): FatKfr? {
+        val tempFile = TempFiles.allocTempFile(KFR_TEMP)
+        val kfr = kwormClient.downloadContent(path, tempFile.toFile())
+        if (kfr == null) {
+            TempFiles.freeTempFile(tempFile)
+            return null
+        }
+        val kfrContent = FatKfr(kfr, tempFile, cleanup = { TempFiles.freeTempFile(tempFile) })
+        return kfrContent
     }
 
 

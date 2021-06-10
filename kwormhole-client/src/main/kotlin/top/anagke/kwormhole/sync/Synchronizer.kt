@@ -41,28 +41,12 @@ class Synchronizer(
     }
 
     private fun loop() {
-        val srcChange = srcModel.changes.take()
-        val path = srcChange.path
-
-        val srcChangeRecord = srcModel.getRecord(path)
-        if (srcChangeRecord == null) {
-            return
+        val change = srcModel.changes.take()
+        if (dstModel.validate(change)) {
+            logger.info { "Sync change from $srcModel to $dstModel: '$change'" }
+            val kfrContent = srcModel.getContent(change.path)!!
+            dstModel.put(kfrContent)
         }
-        if (srcChange != srcChangeRecord) return
-
-
-        val srcChangeContentPath = TempFiles.allocTempFile(tempDir)
-        val srcChangeContent = srcModel.getContent(path, srcChangeContentPath)
-        if (srcChangeContent == null) {
-            return
-        }
-        if (srcChangeRecord != srcChangeContent) return
-
-
-        dstModel.put(srcChangeRecord, srcChangeContentPath)
-        logger.info { "Sync change from $srcModel to $dstModel: '$srcChange'" }
-
-        TempFiles.freeTempFile(srcChangeContentPath)
     }
 
 

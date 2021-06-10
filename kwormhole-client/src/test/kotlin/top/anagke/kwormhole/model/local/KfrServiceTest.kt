@@ -1,5 +1,6 @@
 package top.anagke.kwormhole.model.local
 
+import okio.ByteString.Companion.toByteString
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -9,7 +10,9 @@ import top.anagke.kio.createDir
 import top.anagke.kio.deleteDir
 import top.anagke.kio.deleteFile
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.MockKfr
+import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
 import java.io.File
 import kotlin.random.Random
@@ -55,9 +58,9 @@ internal class KfrServiceTest {
 
             kfrService.sync(mockKfrs.map(Kfr::path))
             mockKfrs.forEach { mockKfr ->
-                val (kfr, file) = kfrService.get(mockKfr.path)
-                Assertions.assertNotNull(kfr)
-                Assertions.assertTrue(kfr!!.canReplace(mockKfr))
+                val kfrContent = kfrService.get(mockKfr.path)
+                Assertions.assertNotNull(kfrContent); kfrContent!!
+                Assertions.assertTrue(kfrContent.kfr.canReplace(mockKfr))
             }
         }
     }
@@ -71,13 +74,13 @@ internal class KfrServiceTest {
         KfrService(root, database).use { kfrService ->
             val mockPairs = List(fileCount) { MockKfr.mockPair() }
             mockPairs.forEach { (kfr, bytes) ->
-                kfrService.put(kfr, bytes)
+                kfrService.put(FatKfr(kfr, bytes.toByteString()))
             }
             mockPairs.forEach { (mockKfr, mockBytes) ->
-                val (kfr, file) = kfrService.get(mockKfr.path)
-                Assertions.assertNotNull(kfr)
-                Assertions.assertEquals(mockKfr, kfr)
-                Assertions.assertArrayEquals(mockBytes, file!!.bytes)
+                val kfrContent = kfrService.get(mockKfr.path)
+                Assertions.assertNotNull(kfrContent); kfrContent!!
+                Assertions.assertEquals(mockKfr, kfrContent.kfr)
+                Assertions.assertEquals(mockBytes.toByteString(), kfrContent.asBytes())
             }
         }
     }

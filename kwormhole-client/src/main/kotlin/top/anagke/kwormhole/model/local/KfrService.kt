@@ -1,12 +1,10 @@
 package top.anagke.kwormhole.model.local
 
-import top.anagke.kio.bytes
-import top.anagke.kio.deleteFile
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import java.io.Closeable
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinTask
@@ -49,14 +47,11 @@ class KfrService(
         }
     }
 
-    fun get(path: String): Pair<Kfr?, File?> {
+    fun get(path: String): FatKfr? {
         lock.readLock().withLock {
-            val kfr = database.get(path)
-            return if (kfr?.exists() == true) {
-                (kfr to kfr.file)
-            } else {
-                (kfr to null)
-            }
+            val kfr = database.get(path) ?: return null
+            val kfrContent = FatKfr(kfr, kfr.file)
+            return kfrContent
         }
     }
 
@@ -66,40 +61,19 @@ class KfrService(
         }
     }
 
-    fun put(kfr: Kfr, bytes: ByteArray?) {
-        if (kfr.exists()) checkNotNull(bytes)
+    fun put(fatKfr: FatKfr) {
         var alt = false
+        val kfr = fatKfr.kfr
+        val path = fatKfr.kfr.path
         lock.writeLock().withLock {
-            if (kfr.canReplace(this.getKfr(kfr.path))) {
+            if (kfr.canReplace(this.getKfr(path))) {
                 database.put(listOf(kfr))
-                if (kfr.exists()) {
-                    kfr.file.bytes = bytes!!
-                } else {
-                    kfr.file.deleteFile()
-                }
+                fatKfr.actualize(kfr.file)
                 alt = true
             }
         }
         if (alt) callListener(kfr)
     }
-
-    fun put(kfr: Kfr, file: File?) {
-        if (kfr.exists()) checkNotNull(file)
-        var alt = false
-        lock.writeLock().withLock {
-            if (kfr.canReplace(this.getKfr(kfr.path))) {
-                database.put(listOf(kfr))
-                if (kfr.exists()) {
-                    Files.move(file!!.toPath(), kfr.file.toPath(), REPLACE_EXISTING)
-                } else {
-                    Files.delete(kfr.file.toPath())
-                }
-                alt = true
-            }
-        }
-        if (alt) callListener(kfr)
-    }
-
 
     private val listeners: MutableList<(Kfr) -> Unit> = CopyOnWriteArrayList()
 
@@ -112,8 +86,8 @@ class KfrService(
     }
 
 
-    private val Kfr.file: File
-        get() = toFile(root)
+    private val Kfr.file: Path
+        get() = toFile(root).toPath()
 
 
     override fun close() {

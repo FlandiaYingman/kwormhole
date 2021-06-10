@@ -72,6 +72,16 @@ object TempFiles {
     }
 
 
+    fun useTempFile(tempDir: Path, block: (Path) -> Unit) {
+        val tempFile = allocTempFile(tempDir)
+        try {
+            block(tempFile)
+        } finally {
+            freeTempFile(tempFile)
+        }
+    }
+
+
     private fun Random.nextHexString(length: Int): String {
         return this.nextBytes(length * 16).let {
             BigInteger(1, it).toString(16).takeLast(length)

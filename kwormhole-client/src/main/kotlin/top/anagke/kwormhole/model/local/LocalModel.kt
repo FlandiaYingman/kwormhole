@@ -3,11 +3,9 @@ package top.anagke.kwormhole.model.local
 import mu.KotlinLogging
 import top.anagke.kio.notExists
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.model.AbstractModel
 import top.anagke.kwormhole.toKfrPath
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 
 class LocalModel(val kfrService: KfrService) : AbstractModel() {
@@ -39,23 +37,16 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
 
 
     override fun getRecord(path: String): Kfr? {
-        return kfrService.get(path).first
+        return kfrService.getKfr(path)
     }
 
-    override fun getContent(path: String, dst: File): Kfr? {
-        val (kfr, src) = kfrService.get(path)
-        if (kfr == null) return null
-        if (kfr.exists()) {
-            Files.copy(src!!.toPath(), dst.toPath(), REPLACE_EXISTING)
-        } else {
-            Files.delete(dst.toPath())
-        }
-        return kfr
+    override fun getContent(path: String): FatKfr? {
+        return kfrService.get(path)
     }
 
 
-    override fun put(record: Kfr, content: File?) {
-        kfrService.put(record, content)
+    override fun put(fatKfr: FatKfr) {
+        kfrService.put(fatKfr)
     }
 
 

@@ -1,8 +1,8 @@
 package top.anagke.kwormhole.model
 
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import java.io.Closeable
-import java.io.File
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -28,12 +28,16 @@ interface Model : Closeable {
      * @param record the record to be put
      * @param content the content to be put
      */
-    fun put(record: Kfr, content: File?)
+    fun put(fatKfr: FatKfr)
+
+    fun validate(kfr: Kfr): Boolean {
+        val oldKfr = getRecord(kfr.path)
+        return kfr.canReplace(oldKfr)
+    }
 
     fun getRecord(path: String): Kfr?
 
-    fun getContent(path: String, file: File): Kfr?
-
+    fun getContent(path: String): FatKfr?
 
     /**
      * Close this model.

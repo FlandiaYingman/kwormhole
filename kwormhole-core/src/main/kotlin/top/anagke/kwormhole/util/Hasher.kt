@@ -2,6 +2,7 @@ package top.anagke.kwormhole.util
 
 import net.jpountz.xxhash.XXHashFactory
 import java.io.File
+import java.nio.file.Path
 
 object Hasher {
 
@@ -21,6 +22,10 @@ object Hasher {
             xxHasher.update(bytes, 0, length)
         }
         return xxHasher.value
+    }
+
+    fun hash(file: Path): Long {
+        return hash(file.toFile())
     }
 
 }

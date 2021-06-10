@@ -25,7 +25,7 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.34.0")
 
     // Http: OkHttp
-    implementation("com.squareup.okhttp3:okhttp:4.9.1")
+    implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.2")
 
     // Util: Other Util Libraries
     implementation("top.anagke:kio:0.1.0")
@@ -42,7 +42,7 @@ dependencies {
     testImplementation("io.ktor:ktor-websockets:1.6.0")
 
     // Test Server Implementation: OkHttp Mock Web Server
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.9.1")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.0.0-alpha.2")
 }
 
 tasks.test {

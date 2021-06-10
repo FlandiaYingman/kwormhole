@@ -32,7 +32,7 @@ dependencies {
 
     // Integration Test: Client
     testImplementation(project(":kwormhole-client"))
-    testImplementation("com.squareup.okhttp3:okhttp:4.9.1")
+    testImplementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.2")
 
     // Test Spring Boot Framework
     testImplementation("org.springframework.boot:spring-boot-starter-test")

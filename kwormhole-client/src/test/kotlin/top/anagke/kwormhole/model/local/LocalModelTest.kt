@@ -1,5 +1,6 @@
 package top.anagke.kwormhole.model.local
 
+import okio.ByteString.Companion.toByteString
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -8,7 +9,11 @@ import top.anagke.kio.createDir
 import top.anagke.kio.deleteFile
 import top.anagke.kio.notExists
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.MockKfr
+import top.anagke.kwormhole.asBytes
+import top.anagke.kwormhole.notExists
+import top.anagke.kwormhole.ofNotExists
 import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
@@ -135,16 +140,15 @@ internal class LocalModelTest {
                 //PUT
                 val (file, kfr) = MockKfr.mockOnRandomFile(TEST_DIR)
                 val bytes = file.bytes
-                model.put(kfr, file)
+                model.put(FatKfr(kfr, file))
 
                 //GET
                 val path = kfr.path
                 val getRecordKfr = model.getRecord(path)
                 assertEquals(kfr, getRecordKfr)
-                val getContentFile = MockKfr.mockFile(TEST_DIR)
-                val getContentKfr = model.getContent(path, getContentFile)
-                assertEquals(kfr, getContentKfr)
-                assertArrayEquals(bytes, getContentFile.bytes)
+                val kfrContent = model.getContent(path)
+                assertEquals(kfr, kfrContent?.kfr)
+                assertEquals(bytes.toByteString(), kfrContent?.asBytes())
             }
         }
     }
@@ -159,17 +163,17 @@ internal class LocalModelTest {
 
                 //PUT
                 val kfr = Kfr(dummyKfr.path, utcEpochMillis, -1, 0)
-                model.put(kfr, null)
+                model.put(ofNotExists(kfr))
                 assertTrue(dummyFile.notExists())
 
                 //GET
                 val path = kfr.path
                 val getRecordKfr = model.getRecord(path)
                 assertEquals(kfr, getRecordKfr)
-                val getContentFile = MockKfr.mockFile(TEST_DIR)
-                val getContentKfr = model.getContent(path, getContentFile)
-                assertEquals(kfr, getContentKfr)
-                assertTrue(getContentFile.notExists())
+                val kfrContent = model.getContent(path)
+                assertNotNull(kfrContent); kfrContent!!
+                assertEquals(kfr, kfrContent.kfr)
+                assertTrue(kfrContent.notExists())
             }
         }
     }
