@@ -1,7 +1,6 @@
 package top.anagke.kwormhole
 
 import top.anagke.kio.bytes
-import top.anagke.kwormhole.Kfr.Companion.asKfr
 import top.anagke.kwormhole.sync.utcEpochMillis
 import top.anagke.kwormhole.test.nextHexString
 import top.anagke.kwormhole.util.Hasher
@@ -29,7 +28,7 @@ object MockKfr {
     fun mockOnRandomFile(root: File): Pair<File, Kfr> {
         val mockFile = mockFile(root)
 
-        val kfr = mockFile.asKfr(root)
+        val kfr = Kfr(root, mockFile)
         return (mockFile to kfr)
     }
 
@@ -37,7 +36,7 @@ object MockKfr {
         val randomBytes = Random.nextBytes(64)
         file.bytes = randomBytes
 
-        val kfr = file.asKfr(root)
+        val kfr = Kfr(root, file)
         return kfr
     }
 

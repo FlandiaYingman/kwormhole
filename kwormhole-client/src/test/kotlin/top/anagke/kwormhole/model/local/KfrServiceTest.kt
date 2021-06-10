@@ -57,7 +57,7 @@ internal class KfrServiceTest {
             mockKfrs.forEach { mockKfr ->
                 val (kfr, file) = kfrService.get(mockKfr.path)
                 Assertions.assertNotNull(kfr)
-                Assertions.assertTrue(kfr!!.isValidTo(mockKfr))
+                Assertions.assertTrue(kfr!!.canReplace(mockKfr))
             }
         }
     }

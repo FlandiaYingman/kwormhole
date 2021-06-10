@@ -125,7 +125,7 @@ class KfrClient(
         val request = Request.Builder()
             .url(url)
             .headers(toHttpHeaders(record))
-            .apply { if (record.representsExisting()) put(content!!.asRequestBody()) }
+            .apply { if (record.exists()) put(content!!.asRequestBody()) }
             .build()
         client.newCall(request).execute().use { response ->
             if (response.isSuccessful.not()) throw IOException("unexpected response code: ${response.code}")

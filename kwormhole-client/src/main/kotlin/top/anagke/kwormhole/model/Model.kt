@@ -75,7 +75,7 @@ abstract class AbstractModel : Model {
 
 
     fun Kfr.isValid(): Boolean {
-        return this.isValidTo(getRecord(path))
+        return this.canReplace(getRecord(path))
     }
 
 }

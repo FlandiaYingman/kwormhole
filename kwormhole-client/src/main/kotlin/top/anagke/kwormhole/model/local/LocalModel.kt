@@ -25,7 +25,7 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
 
         val filePathSeq = root.walk()
             .filter { it.isFile || it.notExists() }
-            .map { it.toKfrPath(root) }
+            .map { toKfrPath(root, it) }
         val databasePathSeq = kfrService.all()
             .map { it.path }
         kfrService.sync((filePathSeq + databasePathSeq).toList())
@@ -33,7 +33,7 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
 
     override fun poll() {
         val poll = monitor.take()
-            .map { it.toKfrPath(root) }
+            .map { toKfrPath(root, it) }
         kfrService.sync(poll)
     }
 
@@ -45,7 +45,7 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
     override fun getContent(path: String, dst: File): Kfr? {
         val (kfr, src) = kfrService.get(path)
         if (kfr == null) return null
-        if (kfr.representsExisting()) {
+        if (kfr.exists()) {
             Files.copy(src!!.toPath(), dst.toPath(), REPLACE_EXISTING)
         } else {
             Files.delete(dst.toPath())

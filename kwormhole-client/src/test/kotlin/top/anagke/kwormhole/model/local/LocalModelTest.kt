@@ -43,7 +43,7 @@ internal class LocalModelTest {
             LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
                 val actualKfr = model.changes.take()
-                assertTrue(expectedKfr.contentEquals(actualKfr))
+                assertTrue(expectedKfr.equalsContent(actualKfr))
             }
         }
     }
@@ -72,7 +72,7 @@ internal class LocalModelTest {
             LocalModel(KfrService(testRoot, database)).use { model ->
                 model.open()
                 val actualKfr = model.changes.take()
-                assertTrue(actualKfr.isValidTo(testKfr))
+                assertTrue(actualKfr.canReplace(testKfr))
             }
         }
     }
@@ -84,11 +84,11 @@ internal class LocalModelTest {
             val (_, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
-                assertTrue(dummyKfr.contentEquals(model.changes.take()))
+                assertTrue(dummyKfr.equalsContent(model.changes.take()))
 
                 val (_, testKfr) = MockKfr.mockOnRandomFile(testRoot)
                 val actualKfr = model.changes.take()
-                assertTrue(testKfr.contentEquals(actualKfr))
+                assertTrue(testKfr.equalsContent(actualKfr))
             }
         }
     }
@@ -99,12 +99,12 @@ internal class LocalModelTest {
             val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
-                assertTrue(testKfr.contentEquals(model.changes.take()))
+                assertTrue(testKfr.equalsContent(model.changes.take()))
 
                 testFile.bytes = Random.nextBytes(64)
                 val actualKfr = model.changes.take()
-                assertFalse(actualKfr.contentEquals(testKfr))
-                assertTrue(actualKfr.isValidTo(testKfr))
+                assertFalse(actualKfr.equalsContent(testKfr))
+                assertTrue(actualKfr.canReplace(testKfr))
             }
         }
     }
@@ -115,12 +115,12 @@ internal class LocalModelTest {
             val (testFile, testKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
-                assertTrue(testKfr.contentEquals(model.changes.take()))
+                assertTrue(testKfr.equalsContent(model.changes.take()))
 
                 testFile.deleteFile()
                 val actualKfr = model.changes.take()
-                assertFalse(actualKfr.contentEquals(testKfr))
-                assertTrue(actualKfr.isValidTo(testKfr))
+                assertFalse(actualKfr.equalsContent(testKfr))
+                assertTrue(actualKfr.canReplace(testKfr))
             }
         }
     }
@@ -155,7 +155,7 @@ internal class LocalModelTest {
             val (dummyFile, dummyKfr) = MockKfr.mockOnRandomFile(testRoot)
             LocalModel(KfrService(testRoot, testDatabase)).use { model ->
                 model.open()
-                assertTrue(dummyKfr.contentEquals(model.changes.take()))
+                assertTrue(dummyKfr.equalsContent(model.changes.take()))
 
                 //PUT
                 val kfr = Kfr(dummyKfr.path, utcEpochMillis, -1, 0)
@@ -195,7 +195,7 @@ internal class LocalModelTest {
                     val actualKfr = model.changes.take()
                     val mockKfr = mockKfrs.find { it.path == actualKfr.path }
                     assertNotNull(mockKfr)
-                    assertTrue(actualKfr.isValidTo(mockKfr))
+                    assertTrue(actualKfr.canReplace(mockKfr))
                 }
             }
         }
@@ -221,7 +221,7 @@ internal class LocalModelTest {
                     val actualKfr = model.changes.take()
                     val mockKfr = mockKfrs.find { it.path == actualKfr.path }
                     assertNotNull(mockKfr)
-                    assertTrue(actualKfr.isValidTo(mockKfr))
+                    assertTrue(actualKfr.canReplace(mockKfr))
                 }
             }
         }

@@ -3,8 +3,6 @@ package top.anagke.kwormhole.model.local
 import top.anagke.kio.bytes
 import top.anagke.kio.deleteFile
 import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.Kfr.Companion.asKfr
-import top.anagke.kwormhole.resolveBy
 import java.io.Closeable
 import java.io.File
 import java.nio.file.Files
@@ -31,12 +29,12 @@ class KfrService(
         val validKfrs = lock.readLock().withLock {
             val oldKfrsTask = ForkJoinTask.adapt(Callable { database.get(paths) }).fork()
             val newKfrTasks = paths.map { path ->
-                ForkJoinTask.adapt(Callable { path.resolveBy(root).asKfr(root) }).fork()
+                ForkJoinTask.adapt(Callable { Kfr(root, path) }).fork()
             }
             val oldKfrs = oldKfrsTask.join()
             oldKfrs.mapIndexedNotNull { i, oldKfr ->
                 val newKfr = newKfrTasks[i].join()
-                if (newKfr.isValidTo(oldKfr)) newKfr else null
+                if (newKfr.canReplace(oldKfr)) newKfr else null
             }
         }
         lock.writeLock().withLock {
@@ -54,7 +52,7 @@ class KfrService(
     fun get(path: String): Pair<Kfr?, File?> {
         lock.readLock().withLock {
             val kfr = database.get(path)
-            return if (kfr?.representsExisting() == true) {
+            return if (kfr?.exists() == true) {
                 (kfr to kfr.file)
             } else {
                 (kfr to null)
@@ -69,12 +67,12 @@ class KfrService(
     }
 
     fun put(kfr: Kfr, bytes: ByteArray?) {
-        if (kfr.representsExisting()) checkNotNull(bytes)
+        if (kfr.exists()) checkNotNull(bytes)
         var alt = false
         lock.writeLock().withLock {
-            if (kfr.isValidTo(this.getKfr(kfr.path))) {
+            if (kfr.canReplace(this.getKfr(kfr.path))) {
                 database.put(listOf(kfr))
-                if (kfr.representsExisting()) {
+                if (kfr.exists()) {
                     kfr.file.bytes = bytes!!
                 } else {
                     kfr.file.deleteFile()
@@ -86,12 +84,12 @@ class KfrService(
     }
 
     fun put(kfr: Kfr, file: File?) {
-        if (kfr.representsExisting()) checkNotNull(file)
+        if (kfr.exists()) checkNotNull(file)
         var alt = false
         lock.writeLock().withLock {
-            if (kfr.isValidTo(this.getKfr(kfr.path))) {
+            if (kfr.canReplace(this.getKfr(kfr.path))) {
                 database.put(listOf(kfr))
-                if (kfr.representsExisting()) {
+                if (kfr.exists()) {
                     Files.move(file!!.toPath(), kfr.file.toPath(), REPLACE_EXISTING)
                 } else {
                     Files.delete(kfr.file.toPath())
@@ -115,7 +113,7 @@ class KfrService(
 
 
     private val Kfr.file: File
-        get() = path.resolveBy(root)
+        get() = toFile(root)
 
 
     override fun close() {
