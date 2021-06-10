@@ -1,3 +1,5 @@
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package top.anagke.kwormhole
 
 import top.anagke.kwormhole.sync.utcEpochMillis
