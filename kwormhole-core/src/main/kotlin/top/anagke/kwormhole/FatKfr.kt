@@ -74,8 +74,8 @@ internal class FatFileKfr(
 
     override fun close() {
         super.close()
-        channel?.close()
         lock?.close()
+        channel?.close()
 
         cleanup.invoke()
     }
