@@ -24,9 +24,10 @@ class KfrService(
      * Synchronizes all of the specified paths with file system.
      */
     fun sync(paths: List<String>) {
+        val pathsDistinct = paths.distinct()
         val validKfrs = lock.readLock().withLock {
-            val oldKfrsTask = ForkJoinTask.adapt(Callable { database.get(paths) }).fork()
-            val newKfrTasks = paths.map { path ->
+            val oldKfrsTask = ForkJoinTask.adapt(Callable { database.get(pathsDistinct) }).fork()
+            val newKfrTasks = pathsDistinct.map { path ->
                 ForkJoinTask.adapt(Callable { Kfr(root, path) }).fork()
             }
             val oldKfrs = oldKfrsTask.join()
