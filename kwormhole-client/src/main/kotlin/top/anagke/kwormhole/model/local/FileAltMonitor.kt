@@ -1,13 +1,12 @@
 package top.anagke.kwormhole.model.local
 
+import com.sun.nio.file.ExtendedWatchEventModifier.FILE_TREE
 import top.anagke.kio.notExists
 import java.io.Closeable
 import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.*
-import java.nio.file.WatchEvent
-import java.nio.file.WatchKey
 import java.nio.file.WatchService
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -34,29 +33,21 @@ class FileAltMonitor(
 
 
     private fun run() {
-        register(root)
+        //TODO: this implementation supports only windows, support others in future
+        root.toPath().register(service, arrayOf(ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY), FILE_TREE)
         while (!Thread.interrupted()) {
             val key = service.take()
-            key.pollEvents().forEach { submit(key, it) }
+            key.pollEvents().forEach { event ->
+                val parent = (key.watchable() as Path).toFile()
+                val file = parent.resolve((event.context() as Path).toFile())
+                submit(file)
+            }
             key.reset()
         }
     }
 
-    private fun register(dir: File) {
-        check(dir.isDirectory)
-        dir.walk()
-            .filter { it.isDirectory }
-            .forEach { it.toPath().register(service, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY) }
-    }
-
-    private fun submit(key: WatchKey, event: WatchEvent<*>) {
-        val parent = (key.watchable() as Path).toFile()
-        val file = parent.resolve((event.context() as Path).toFile())
-        if (file.isDirectory) {
-            register(file)
-        } else {
-            alternations.put(file)
-        }
+    private fun submit(file: File) {
+        alternations.put(file)
     }
 
     fun take(): List<File> {
