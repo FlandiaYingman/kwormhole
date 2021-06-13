@@ -1,17 +1,11 @@
 package top.anagke.kwormhole.model.local
 
-import mu.KotlinLogging
-import top.anagke.kio.notExists
-import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.model.AbstractModel
-import top.anagke.kwormhole.toKfrPath
 
 
 class LocalModel(val kfrService: KfrService) : AbstractModel() {
-
-    private val logger = KotlinLogging.logger {}
-
 
     private val root = kfrService.root
 
@@ -20,24 +14,17 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
 
     override fun init() {
         kfrService.registerListener { changes.put(it) }
-
-        val filePathSeq = root.walk()
-            .filter { it.isFile || it.notExists() }
-            .map { toKfrPath(root, it) }
-        val databasePathSeq = kfrService.all()
-            .map { it.path }
-        kfrService.sync((filePathSeq + databasePathSeq).toList())
+        kfrService.sync()
     }
 
     override fun poll() {
         val poll = monitor.take()
-            .map { toKfrPath(root, it) }
         kfrService.sync(poll)
     }
 
 
     override fun getRecord(path: String): Kfr? {
-        return kfrService.getKfr(path)
+        return kfrService.head(path)
     }
 
     override fun getContent(path: String): FatKfr? {
