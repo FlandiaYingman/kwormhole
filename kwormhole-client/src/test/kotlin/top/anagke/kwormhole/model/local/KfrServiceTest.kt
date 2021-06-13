@@ -1,21 +1,15 @@
 package top.anagke.kwormhole.model.local
 
-import okio.ByteString.Companion.toByteString
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import top.anagke.kio.bytes
 import top.anagke.kio.createDir
 import top.anagke.kio.deleteDir
 import top.anagke.kio.deleteFile
-import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.MockKfr
-import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
 import java.io.File
-import kotlin.random.Random
 
 internal class KfrServiceTest {
 
@@ -47,40 +41,35 @@ internal class KfrServiceTest {
 
     @Test
     fun sync_get() {
-        val fileCount = 1024
-        val fileSize = 64 * 1024
+        val fileCount = 256
         val root = testRoot
         val database = testDatabase
         KfrService(root, database).use { kfrService ->
-            val mockFiles = List(fileCount) { MockKfr.mockOnRandomFile(testRoot) }
-            val mockKfrs = mockFiles.map { (_, kfr) -> kfr }
-            mockFiles.forEach { (file, _) -> file.bytes = Random.nextBytes(fileSize) }
+            val mocks = List(fileCount) { MockKfr.mockOnFile(testRoot) }
+            kfrService.sync(mocks.map { (_, mockFile) -> mockFile })
 
-            kfrService.sync(mockKfrs.map(Kfr::path))
-            mockKfrs.forEach { mockKfr ->
-                val kfrContent = kfrService.get(mockKfr.path)
-                Assertions.assertNotNull(kfrContent); kfrContent!!
-                Assertions.assertTrue(kfrContent.kfr.canReplace(mockKfr))
+            mocks.forEach { (mockFatKfr, _) ->
+                val actualFatKfr = kfrService.get(mockFatKfr.path)
+                assertNotNull(actualFatKfr); actualFatKfr!!
+                assertTrue(mockFatKfr.equalsContent(actualFatKfr))
+                assertEquals(mockFatKfr.body(), actualFatKfr.body())
             }
         }
     }
 
     @Test
     fun put_get() {
-        val fileCount = 1024
-        val fileSize = 64 * 1024
+        val fileCount = 256
         val root = testRoot
         val database = testDatabase
         KfrService(root, database).use { kfrService ->
-            val mockPairs = List(fileCount) { MockKfr.mockPair() }
-            mockPairs.forEach { (kfr, bytes) ->
-                kfrService.put(FatKfr(kfr, bytes.toByteString()))
-            }
-            mockPairs.forEach { (mockKfr, mockBytes) ->
-                val kfrContent = kfrService.get(mockKfr.path)
-                Assertions.assertNotNull(kfrContent); kfrContent!!
-                Assertions.assertEquals(mockKfr, kfrContent.kfr)
-                Assertions.assertEquals(mockBytes.toByteString(), kfrContent.asBytes())
+            val mockFatKfrs = List(fileCount) { MockKfr.mockFatKfr() }
+            mockFatKfrs.forEach { mockFatKfr -> kfrService.put(mockFatKfr) }
+            mockFatKfrs.forEach { mockFatKfr ->
+                val actualFatKfr = kfrService.get(mockFatKfr.path)
+                assertNotNull(actualFatKfr); actualFatKfr!!
+                assertEquals(mockFatKfr.kfr, actualFatKfr.kfr)
+                assertEquals(mockFatKfr.body(), actualFatKfr.body())
             }
         }
     }

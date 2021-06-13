@@ -1,59 +1,51 @@
 package top.anagke.kwormhole
 
-import top.anagke.kio.bytes
+import okio.ByteString.Companion.toByteString
 import top.anagke.kwormhole.sync.utcEpochMillis
-import top.anagke.kwormhole.test.nextHexString
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
+import java.util.*
 import kotlin.random.Random
 
 object MockKfr {
 
     fun mockString(): String {
-        return Random.nextHexString(8)
+        return UUID.randomUUID().toString()
     }
 
-    fun mockFile(parent: File): File {
-        return parent.resolve(mockString()).also { it.createNewFile() }
+    fun mockPath(maxDepth: Int = 4): String {
+        return List(Random.nextInt(1, maxDepth + 1)) { "/${mockString()}" }.joinToString("")
     }
 
-    fun mockRecord(): Kfr {
-        val path = List(Random.nextInt(4, 8)) { "/${mockString()}" }.joinToString("")
-        val size = Random.nextLong(Int.MAX_VALUE.toLong())
+    fun mockFile(parent: File, maxDepth: Int = 4): File {
+        return parseKfrPath(parent, mockPath(maxDepth))
+    }
+
+
+    fun mockKfr(maxSize: Int = 4096): Kfr {
+        val path = mockPath()
         val time = utcEpochMillis
+        val size = Random.nextLong(maxSize.toLong())
         val hash = Random.nextLong()
         return Kfr(path, time, size, hash)
     }
 
-    fun mockOnRandomFile(root: File): Pair<File, Kfr> {
-        val mockFile = mockFile(root)
+    fun mockFatKfr(maxSize: Int = 4096, maxDepth: Int = 4): FatKfr {
+        val content = Random.nextBytes(Random.nextInt(maxSize))
 
-        val kfr = Kfr(root, mockFile)
-        return (mockFile to kfr)
-    }
-
-    fun mockOnFile(root: File, file: File): Kfr {
-        val randomBytes = Random.nextBytes(64)
-        file.bytes = randomBytes
-
-        val kfr = Kfr(root, file)
-        return kfr
-    }
-
-    fun mockPath(): String {
-        return List(Random.nextInt(4, 8)) { "/${mockString()}" }.joinToString("")
-    }
-
-
-    fun mockPair(): Pair<Kfr, ByteArray> {
-        val bytes = Random.nextBytes(64)
-
-        val path = mockPath()
+        val path = mockPath(maxDepth)
         val time = utcEpochMillis
-        val size = bytes.size.toLong()
-        val hash = Hasher.hash(bytes)
+        val size = content.size.toLong()
+        val hash = Hasher.hash(content)
 
-        return (Kfr(path, time, size, hash) to bytes)
+        return FatKfr(Kfr(path, time, size, hash), content.toByteString())
+    }
+
+    fun mockOnFile(root: File, maxSize: Int = 4096, maxDepth: Int = 4): Pair<FatKfr, File> {
+        val kfrContent = mockFatKfr(maxSize, maxDepth)
+        val file = parseKfrPath(root, kfrContent.kfr.path)
+        kfrContent.actualize(file.toPath())
+        return (kfrContent to file)
     }
 
 }

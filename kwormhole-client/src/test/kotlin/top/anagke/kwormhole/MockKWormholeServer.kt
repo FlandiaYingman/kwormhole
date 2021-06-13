@@ -92,12 +92,12 @@ class MockKWormholeServer : Closeable {
     }
 
     fun mockPair(): Pair<Kfr, ByteArray> {
-        val (record, content) = MockKfr.mockPair()
-        records += record
-        contents += content
-        changes.put(record)
-        wsEvents.put(record)
-        return record to content
+        val kfrContent = MockKfr.mockFatKfr()
+        records += kfrContent.kfr
+        contents += kfrContent.body()!!.toByteArray()
+        changes.put(kfrContent.kfr)
+        wsEvents.put(kfrContent.kfr)
+        return kfrContent.kfr to kfrContent.body()!!.toByteArray()
     }
 
 

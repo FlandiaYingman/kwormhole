@@ -26,7 +26,7 @@ internal class KfrDatabaseTest {
     @Test
     fun put100AtOnce_thenTestAll() {
         KfrDatabase(databaseFile).use { database ->
-            val expectedKfrs = List(100) { MockKfr.mockRecord() }
+            val expectedKfrs = List(100) { MockKfr.mockKfr() }
             database.put(expectedKfrs)
             val actualKfrs = database.all()
             assertEquals(expectedKfrs.toSet(), actualKfrs.toSet())
@@ -36,21 +36,11 @@ internal class KfrDatabaseTest {
     @Test
     fun put100AtOnce_thenTestGet() {
         KfrDatabase(databaseFile).use { database ->
-            val expectedKfrs = MutableList(100) { MockKfr.mockRecord() }
+            val expectedKfrs = MutableList(100) { MockKfr.mockKfr() }
             database.put(expectedKfrs)
             expectedKfrs.forEach { expectedKfr ->
                 assertEquals(expectedKfr, database.get(expectedKfr.path))
             }
-        }
-    }
-
-    @Test
-    fun put100Sequentially_thenTestAll() {
-        KfrDatabase(databaseFile).use { database ->
-            val expectedKfrs = List(100) { MockKfr.mockRecord() }
-            expectedKfrs.forEach { database.put(listOf(it)) }
-            val actualKfrs = database.all()
-            assertEquals(expectedKfrs.toSet(), actualKfrs.toSet())
         }
     }
 

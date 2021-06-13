@@ -1,13 +1,12 @@
 package top.anagke.kwormhole.model.remote
 
 import okio.ByteString.Companion.toByteString
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
-import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.MockKWormholeServer
 import top.anagke.kwormhole.MockKfr
-import top.anagke.kwormhole.asBytes
 import top.anagke.kwormhole.test.TEST_DIR
 import top.anagke.kwormhole.test.pollNonnull
 import top.anagke.kwormhole.test.useDir
@@ -29,7 +28,7 @@ internal class RemoteModelTest {
                     val kfrContent = model.getContent(mockKfr.path)
                     assertEquals(mockKfr, change)
                     assertEquals(mockKfr, kfr)
-                    assertEquals(mockBytes.toByteString(), kfrContent?.asBytes())
+                    assertEquals(mockBytes.toByteString(), kfrContent?.body())
                 }
             }
         }
@@ -50,7 +49,7 @@ internal class RemoteModelTest {
                     val kfrContent = model.getContent(mockKfr.path)
                     assertEquals(mockKfr, change)
                     assertEquals(mockKfr, kfr)
-                    assertEquals(mockBytes.toByteString(), kfrContent?.asBytes())
+                    assertEquals(mockBytes.toByteString(), kfrContent?.body())
                 }
             }
         }
@@ -63,15 +62,16 @@ internal class RemoteModelTest {
                 RemoteModel(server.host, server.port).use { model ->
                     model.open()
 
-                    val (mockKfr, mockBytes) = MockKfr.mockPair()
-                    model.put(FatKfr(mockKfr, mockBytes.toByteString()))
+                    val mockFatKfr = MockKfr.mockFatKfr()
+                    val mockKfr = mockFatKfr.kfr
+                    model.put(mockFatKfr)
 
                     pollNonnull { model.getRecord(mockKfr.path) }
 
                     val kfr = model.getRecord(mockKfr.path)
                     val kfrContent = model.getContent(mockKfr.path)
                     assertEquals(mockKfr, kfr)
-                    assertEquals(mockBytes.toByteString(), kfrContent?.asBytes())
+                    assertEquals(mockFatKfr.body(), kfrContent?.body())
 
                     val change = model.changes.poll()
                     assertNull(change)
