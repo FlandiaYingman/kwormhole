@@ -42,9 +42,9 @@ class Synchronizer(
 
     private fun loop() {
         val change = srcModel.changes.take()
-        if (dstModel.validate(change)) {
+        if (dstModel.acceptable(change)) {
             logger.info { "Sync change from $srcModel to $dstModel: '$change'" }
-            val kfrContent = srcModel.getContent(change.path)!!
+            val kfrContent = srcModel.get(change.path)!!
             dstModel.put(kfrContent)
         }
     }

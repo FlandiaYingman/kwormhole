@@ -61,7 +61,7 @@ internal class LocalModelTest {
         model.kfrService.database.put(listOf(exFatKfr.kfr))
 
         model.open()
-        val actualKfr = pollNonnull { model.getRecord(exFatKfr.kfr.path) }
+        val actualKfr = pollNonnull { model.head(exFatKfr.kfr.path) }
         assertEquals(exFatKfr.kfr, actualKfr)
     }
 
@@ -93,7 +93,7 @@ internal class LocalModelTest {
         // Wait For...
         pollNonnull {
             mockList.forEach { (mockFat, _) ->
-                model.getContent(mockFat.path).use { modelFat ->
+                model.get(mockFat.path).use { modelFat ->
                     if (modelFat == null) return@pollNonnull null
                     if (mockFat.body() != modelFat.body()) return@pollNonnull null
                 }
@@ -101,7 +101,7 @@ internal class LocalModelTest {
         }
 
         mockList.forEach { (mockFat, _) ->
-            model.getContent(mockFat.path).use { modelFat ->
+            model.get(mockFat.path).use { modelFat ->
                 assertNotNull(modelFat); modelFat!!
                 assertEquals(mockFat.body(), modelFat.body())
             }
@@ -123,9 +123,9 @@ internal class LocalModelTest {
 
         //GET
         val path = testFatKfr.kfr.path
-        val getRecordKfr = model.getRecord(path)
+        val getRecordKfr = model.head(path)
         assertEquals(testKfr, getRecordKfr)
-        val kfrContent = model.getContent(path)
+        val kfrContent = model.get(path)
         assertEquals(testKfr, kfrContent?.kfr)
         assertEquals(testFatKfr.body(), kfrContent?.body())
 
@@ -147,9 +147,9 @@ internal class LocalModelTest {
 
         //GET
         val path = kfr.path
-        val getRecordKfr = model.getRecord(path)
+        val getRecordKfr = model.head(path)
         assertEquals(kfr, getRecordKfr)
-        val kfrContent = model.getContent(path)
+        val kfrContent = model.get(path)
         assertNotNull(kfrContent); kfrContent!!
         assertEquals(kfr, kfrContent.kfr)
         assertTrue(kfrContent.notExists())

@@ -75,11 +75,11 @@ class RemoteModel(
         }
     }
 
-    override fun getRecord(path: String): Kfr? {
+    override fun head(path: String): Kfr? {
         return kfrClient.head(path)
     }
 
-    override fun getContent(path: String): FatKfr? {
+    override fun get(path: String): FatKfr? {
         val tempFile = TempFiles.allocTempFile(KFR_TEMP)
         val kfr = kfrClient.get(path, tempFile.toFile())
         if (kfr == null) {

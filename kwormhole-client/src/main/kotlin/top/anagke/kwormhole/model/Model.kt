@@ -1,7 +1,7 @@
 package top.anagke.kwormhole.model
 
-import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.Kfr
 import java.io.Closeable
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -24,20 +24,31 @@ interface Model : Closeable {
 
 
     /**
-     * Puts a record and the corresponding content to this model.
-     * @param record the record to be put
-     * @param content the content to be put
+     * Gets the KFR corresponded to the given path.
+     * @return the KFR, or `null` if absent
+     */
+    fun head(path: String): Kfr?
+
+    /**
+     * Gets the fat KFR corresponded to the given path.
+     * @return the fat KFR, or `null` if absent
+     */
+    fun get(path: String): FatKfr?
+
+
+    /**
+     * Puts a fat KFR to this model.
      */
     fun put(fatKfr: FatKfr)
 
-    fun validate(kfr: Kfr): Boolean {
-        val oldKfr = getRecord(kfr.path)
+    /**
+     * Check if the KFR can replace the KFR with same path in this model (if present).
+     */
+    fun acceptable(kfr: Kfr): Boolean {
+        val oldKfr = head(kfr.path)
         return kfr.canReplace(oldKfr)
     }
 
-    fun getRecord(path: String): Kfr?
-
-    fun getContent(path: String): FatKfr?
 
     /**
      * Close this model.
@@ -68,18 +79,14 @@ abstract class AbstractModel : Model {
     override val changes: BlockingQueue<Kfr> = LinkedBlockingQueue()
 
 
-    abstract fun init()
+    open fun init() {}
 
-    abstract fun poll()
+    open fun poll() {}
+
 
     override fun close() {
         runner?.interrupt()
         runner?.join()
-    }
-
-
-    fun Kfr.isValid(): Boolean {
-        return this.canReplace(getRecord(path))
     }
 
 }

@@ -23,11 +23,11 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
     }
 
 
-    override fun getRecord(path: String): Kfr? {
+    override fun head(path: String): Kfr? {
         return kfrService.head(path)
     }
 
-    override fun getContent(path: String): FatKfr? {
+    override fun get(path: String): FatKfr? {
         return kfrService.get(path)
     }
 

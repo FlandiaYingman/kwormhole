@@ -24,8 +24,8 @@ internal class RemoteModelTest {
                     model.open()
 
                     val change = model.changes.take()
-                    val kfr = model.getRecord(mockKfr.path)
-                    val kfrContent = model.getContent(mockKfr.path)
+                    val kfr = model.head(mockKfr.path)
+                    val kfrContent = model.get(mockKfr.path)
                     assertEquals(mockKfr, change)
                     assertEquals(mockKfr, kfr)
                     assertEquals(mockBytes.toByteString(), kfrContent?.body())
@@ -45,8 +45,8 @@ internal class RemoteModelTest {
 
                     val (mockKfr, mockBytes) = server.mockPair()
                     val change = model.changes.take()
-                    val kfr = model.getRecord(mockKfr.path)
-                    val kfrContent = model.getContent(mockKfr.path)
+                    val kfr = model.head(mockKfr.path)
+                    val kfrContent = model.get(mockKfr.path)
                     assertEquals(mockKfr, change)
                     assertEquals(mockKfr, kfr)
                     assertEquals(mockBytes.toByteString(), kfrContent?.body())
@@ -66,10 +66,10 @@ internal class RemoteModelTest {
                     val mockKfr = mockFatKfr.kfr
                     model.put(mockFatKfr)
 
-                    pollNonnull { model.getRecord(mockKfr.path) }
+                    pollNonnull { model.head(mockKfr.path) }
 
-                    val kfr = model.getRecord(mockKfr.path)
-                    val kfrContent = model.getContent(mockKfr.path)
+                    val kfr = model.head(mockKfr.path)
+                    val kfrContent = model.get(mockKfr.path)
                     assertEquals(mockKfr, kfr)
                     assertEquals(mockFatKfr.body(), kfrContent?.body())
 
