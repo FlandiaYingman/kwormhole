@@ -16,7 +16,7 @@ import java.util.*
 
 
 @Component
-class SocketHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
+class WSHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
 
     private val logger = KotlinLogging.logger { }
 

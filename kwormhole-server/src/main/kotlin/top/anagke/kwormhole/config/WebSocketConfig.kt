@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.web.socket.config.annotation.EnableWebSocket
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
-import top.anagke.kwormhole.controller.SocketHandler
+import top.anagke.kwormhole.controller.WSHandler
 
 
 @Configuration
@@ -13,10 +13,10 @@ import top.anagke.kwormhole.controller.SocketHandler
 class WebSocketConfig : WebSocketConfigurer {
 
     @Autowired
-    private lateinit var handler: SocketHandler
+    private lateinit var handlerWeb: WSHandler
 
     override fun registerWebSocketHandlers(registry: WebSocketHandlerRegistry) {
-        registry.addHandler(handler, "/all")
+        registry.addHandler(handlerWeb, "/all")
     }
 
 }

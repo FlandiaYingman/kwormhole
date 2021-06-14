@@ -3,29 +3,29 @@ package top.anagke.kwormhole.service
 import org.hibernate.engine.jdbc.BlobProxy
 import org.springframework.stereotype.Service
 import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.dao.ContentEntity
-import top.anagke.kwormhole.dao.ContentRepository
-import top.anagke.kwormhole.dao.RecordEntity
-import top.anagke.kwormhole.dao.RecordRepository
+import top.anagke.kwormhole.dao.KfrEntity
+import top.anagke.kwormhole.dao.KfrFileEntity
+import top.anagke.kwormhole.dao.KfrFileRepository
+import top.anagke.kwormhole.dao.KfrRepository
 
 @Service
 class KfrService(
-    private val recordRepo: RecordRepository,
-    private val contentRepo: ContentRepository
+    private val kfrRepo: KfrRepository,
+    private val contentRepository: KfrFileRepository
 ) {
     //TODO: Transaction!
 
     fun all(): List<Kfr> {
-        return recordRepo.findAll().map { it.toRecord() }
+        return kfrRepo.findAll().map { it.asKfr() }
     }
 
     fun head(path: String): Kfr? {
-        return recordRepo.findById(path).orElseGet { null }?.toRecord()
+        return kfrRepo.findById(path).orElseGet { null }?.asKfr()
     }
 
     fun get(path: String): Pair<Kfr, ByteArray>? {
-        val record = recordRepo.findById(path).orElseGet { null }?.toRecord()
-        val content = contentRepo.findById(path).orElseGet { null }?.content?.binaryStream?.use { it.readBytes() }
+        val record = kfrRepo.findById(path).orElseGet { null }?.asKfr()
+        val content = contentRepository.findById(path).orElseGet { null }?.content?.binaryStream?.use { it.readBytes() }
         if ((record == null) != (content == null)) {
             TODO("The state of repos aren't same, could be fixed by enabling transaction")
         }
@@ -40,13 +40,13 @@ class KfrService(
         if (path != record.path) {
             TODO("Throw an exception")
         }
-        recordRepo.save(RecordEntity(record))
-        contentRepo.save(ContentEntity(path, BlobProxy.generateProxy(content)))
+        kfrRepo.save(KfrEntity(record))
+        contentRepository.save(KfrFileEntity(path, BlobProxy.generateProxy(content)))
     }
 
     operator fun contains(path: String): Boolean {
-        val recordExistence = recordRepo.existsById(path)
-        val contentExistence = contentRepo.existsById(path)
+        val recordExistence = kfrRepo.existsById(path)
+        val contentExistence = contentRepository.existsById(path)
         if (recordExistence != contentExistence)
             TODO("The state of repos aren't same, could be fixed by enabling transaction")
         return recordExistence && contentExistence
