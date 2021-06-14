@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit.SECONDS
 class IntegrationTest {
 
     private var server: ConfigurableApplicationContext? = null
-    private var client1: KwormholeClient? = null
-    private var client2: KwormholeClient? = null
+    private var client1: KWormholeClient? = null
+    private var client2: KWormholeClient? = null
 
     private val serverDatabase = File("./database-test.mv.db")
 
@@ -108,5 +108,5 @@ class IntegrationTest {
 private fun launchServer(): ConfigurableApplicationContext = runApplication<KwormholeApp>()
 
 private fun launchClient(root: File, database: File) =
-    KwormholeClient(root.absolutePath, database.absolutePath, "localhost", 8080)
+    KWormholeClient.open(root.absolutePath, database.absolutePath, "localhost", 8080)
 
