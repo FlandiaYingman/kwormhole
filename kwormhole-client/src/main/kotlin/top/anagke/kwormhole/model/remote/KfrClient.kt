@@ -62,7 +62,7 @@ class KfrClient(
      * @param path the path
      * @return the record object, or `null` if the record doesn't exist
      */
-    fun downloadRecord(path: String): Kfr? {
+    fun head(path: String): Kfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
@@ -86,7 +86,7 @@ class KfrClient(
      * @param file where the content to be downloaded into
      * @return the record object, or `null` if the record doesn't exist
      */
-    fun downloadContent(path: String, file: File): Kfr? {
+    fun get(path: String, file: File): Kfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
@@ -117,7 +117,7 @@ class KfrClient(
      * @param record the record
      * @param content the content of the record
      */
-    fun upload(record: Kfr, content: File?) {
+    fun put(record: Kfr, content: File?) {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(record.path.removePrefix("/"))
