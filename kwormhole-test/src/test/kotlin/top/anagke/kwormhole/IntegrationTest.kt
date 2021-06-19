@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Timeout
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.ConfigurableApplicationContext
-import top.anagke.kio.deleteDir
-import top.anagke.kio.deleteFile
+import top.anagke.kio.file.deleteDir
+import top.anagke.kio.file.deleteFile
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
 import java.util.concurrent.TimeUnit.SECONDS

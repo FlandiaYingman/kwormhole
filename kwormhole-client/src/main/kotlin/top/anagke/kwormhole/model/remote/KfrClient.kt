@@ -11,7 +11,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.internal.EMPTY_BYTE_ARRAY
 import okio.ByteString
-import top.anagke.kio.createFile
+import top.anagke.kio.file.createFile
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.util.fromJson
 import java.io.ByteArrayInputStream

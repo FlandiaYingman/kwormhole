@@ -3,7 +3,7 @@
 package top.anagke.kwormhole.model.local
 
 import mu.KotlinLogging
-import top.anagke.kio.notExists
+import top.anagke.kio.file.notExists
 import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.parseKfrPath

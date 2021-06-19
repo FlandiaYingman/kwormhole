@@ -1,6 +1,6 @@
 package top.anagke.kwormhole
 
-import top.anagke.kio.bytes
+import top.anagke.kio.file.bytes
 import java.io.File
 import java.math.BigInteger
 import kotlin.random.Random

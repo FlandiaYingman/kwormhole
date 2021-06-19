@@ -1,7 +1,7 @@
 package top.anagke.kwormhole.util
 
-import top.anagke.kio.createDir
-import top.anagke.kio.deleteDir
+import top.anagke.kio.file.createDir
+import top.anagke.kio.file.deleteDir
 import java.io.File
 import java.math.BigInteger
 import java.nio.file.Files

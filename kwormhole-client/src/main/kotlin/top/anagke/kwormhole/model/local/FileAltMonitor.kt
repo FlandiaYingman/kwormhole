@@ -1,7 +1,7 @@
 package top.anagke.kwormhole.model.local
 
 import com.sun.nio.file.ExtendedWatchEventModifier.FILE_TREE
-import top.anagke.kio.notExists
+import top.anagke.kio.file.notExists
 import java.io.Closeable
 import java.io.File
 import java.nio.file.FileSystems

@@ -4,9 +4,9 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import top.anagke.kio.createDir
-import top.anagke.kio.deleteDir
-import top.anagke.kio.deleteFile
+import top.anagke.kio.file.createDir
+import top.anagke.kio.file.deleteDir
+import top.anagke.kio.file.deleteFile
 import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.test.TEST_DIR
 import java.io.File

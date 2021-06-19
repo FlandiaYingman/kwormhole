@@ -5,11 +5,11 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
-import top.anagke.kio.bytes
-import top.anagke.kio.createDir
-import top.anagke.kio.deleteDir
-import top.anagke.kio.deleteFile
-import top.anagke.kio.notExists
+import top.anagke.kio.file.bytes
+import top.anagke.kio.file.createDir
+import top.anagke.kio.file.deleteDir
+import top.anagke.kio.file.deleteFile
+import top.anagke.kio.file.notExists
 import top.anagke.kwormhole.EmptyFatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.MockKfr
