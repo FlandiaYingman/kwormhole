@@ -7,6 +7,7 @@ import okio.ByteString.Companion.toByteString
 import okio.Closeable
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
+import java.io.InputStream
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.file.Files
@@ -25,7 +26,7 @@ sealed class FatKfr(val kfr: Kfr) : Closeable {
 
 
     abstract fun body(): ByteString?
-
+    abstract fun stream(): InputStream?
     abstract fun actualize(file: Path)
 
 
@@ -85,6 +86,10 @@ internal class FatFileKfr(
         return if (kfr.exists()) file.toFile().readBytes().toByteString() else null
     }
 
+    override fun stream(): InputStream {
+        return Files.newInputStream(file, READ)
+    }
+
     override fun actualize(file: Path) {
         Files.createDirectories(file.parent)
         Files.copy(this.file, file, REPLACE_EXISTING)
@@ -108,6 +113,10 @@ internal class FatBufferKfr(
         return this.buffer
     }
 
+    override fun stream(): InputStream {
+        return buffer.toByteArray().inputStream()
+    }
+
     override fun actualize(file: Path) {
         Files.createDirectories(file.parent)
         if (Files.notExists(file)) Files.createFile(file)
@@ -127,6 +136,10 @@ internal class FatEmptyKfr(
     }
 
     override fun body(): ByteString? {
+        return null
+    }
+
+    override fun stream(): InputStream? {
         return null
     }
 
