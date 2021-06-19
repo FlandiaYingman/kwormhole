@@ -105,8 +105,11 @@ class IntegrationTest {
 
 }
 
-private fun launchServer(): ConfigurableApplicationContext = runApplication<KwormholeApp>()
+private fun launchServer(): ConfigurableApplicationContext {
+    return runApplication<KwormholeApp>()
+}
 
-private fun launchClient(root: File, database: File) =
-    KWormholeClient.open(root.absolutePath, database.absolutePath, "localhost", 8080)
+private fun launchClient(root: File, database: File): KWormholeClient {
+    return KWormholeClient.open(root.absolutePath, database.absolutePath, "localhost", 8080)
+}
 
