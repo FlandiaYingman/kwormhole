@@ -69,10 +69,7 @@ class RemoteModel(
 
     override fun put(fatKfr: FatKfr) {
         uploadKfrs += fatKfr.kfr
-        TempFiles.useTempFile(KFR_TEMP) { temp ->
-            fatKfr.actualize(temp)
-            kfrClient.put(fatKfr.kfr, temp.toFile())
-        }
+        kfrClient.put(fatKfr)
     }
 
     override fun head(path: String): Kfr? {
@@ -80,13 +77,7 @@ class RemoteModel(
     }
 
     override fun get(path: String): FatKfr? {
-        val tempFile = TempFiles.allocTempFile(KFR_TEMP)
-        val kfr = kfrClient.get(path, tempFile.toFile())
-        if (kfr == null) {
-            TempFiles.freeTempFile(tempFile)
-            return null
-        }
-        val fat = FatKfr(kfr, tempFile, cleanup = { TempFiles.freeTempFile(tempFile) })
+        val fat = kfrClient.get(path)
         return fat
     }
 

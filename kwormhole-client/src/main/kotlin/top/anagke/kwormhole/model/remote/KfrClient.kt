@@ -6,18 +6,18 @@ import com.google.gson.JsonSyntaxException
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import okhttp3.internal.EMPTY_BYTE_ARRAY
 import okio.ByteString
-import top.anagke.kio.file.createFile
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.util.TempFiles
 import top.anagke.kwormhole.util.fromJson
-import java.io.ByteArrayInputStream
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -28,6 +28,12 @@ class KfrClient(
     private val serverHost: String,
     private val serverPort: Int,
 ) {
+
+    private val tempDirectory = File("./kfr_client_temp")
+
+    init {
+        TempFiles.register(tempDirectory)
+    }
 
     private val client = OkHttpClient()
 
@@ -86,7 +92,7 @@ class KfrClient(
      * @param file where the content to be downloaded into
      * @return the record object, or `null` if the record doesn't exist
      */
-    fun get(path: String, file: File): Kfr? {
+    fun get(path: String): FatKfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
@@ -98,12 +104,15 @@ class KfrClient(
         client.newCall(request).execute().use { response ->
             return when {
                 response.isSuccessful -> {
-                    (response.body?.byteStream() ?: ByteArrayInputStream(EMPTY_BYTE_ARRAY))
-                        .use { contentStream ->
-                            file.createFile()
-                            file.outputStream().use { fileStream -> contentStream.copyTo(fileStream) }
-                        }
-                    fromHttpHeaders(path, response.headers)
+                    val stream = response.body?.byteStream() ?: InputStream.nullInputStream()
+                    stream.use { input ->
+                        val kfr = fromHttpHeaders(path, response.headers)
+
+                        val temp = TempFiles.allocTempFile(tempDirectory)
+                        temp.outputStream().use { output -> input.copyTo(output) }
+
+                        FatKfr(kfr, temp) { TempFiles.freeTempFile(temp) }
+                    }
                 }
                 response.code == 404 -> null
                 else -> TODO("Throw exception")
@@ -114,18 +123,17 @@ class KfrClient(
 
     /**
      * Uploads a record and its content to the server.
-     * @param record the record
-     * @param content the content of the record
+     * @param fat the fat KFR, containing the record and its body
      */
-    fun put(record: Kfr, content: File?) {
+    fun put(fat: FatKfr) {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
-            .addPathSegments(record.path.removePrefix("/"))
+            .addPathSegments(fat.path.removePrefix("/"))
             .build()
         val request = Request.Builder()
             .url(url)
-            .headers(toHttpHeaders(record))
-            .apply { if (record.exists()) put(content!!.asRequestBody()) }
+            .headers(toHttpHeaders(fat.kfr))
+            .apply { if (fat.exists()) put(fat.body()!!.toRequestBody()) }
             .build()
         client.newCall(request).execute().use { response ->
             if (response.isSuccessful.not()) throw IOException("unexpected response code: ${response.code}")
