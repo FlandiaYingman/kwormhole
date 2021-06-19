@@ -1,6 +1,7 @@
 package top.anagke.kwormhole.controller
 
 import mu.KotlinLogging
+import okio.ByteString.Companion.toByteString
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpHeaders
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.Kfr.Companion.HASH_HEADER_NAME
 import top.anagke.kwormhole.Kfr.Companion.SIZE_HEADER_NAME
@@ -69,11 +71,11 @@ internal class KfrController(
         response: HttpServletResponse
     ): ByteArray {
         val path = request.kfrPath()
-        val (record, content) = kfrService.get(path) ?: throw KfrNotFoundException(path)
-        record.toHttpHeaders().forEach { (name, value) -> response.addHeader(name, value) }
+        val fat = kfrService.get(path) ?: throw KfrNotFoundException(path)
+        fat.kfr.toHttpHeaders().forEach { (name, value) -> response.addHeader(name, value) }
 
-        logger.info { "GET ${request.servletPath}, response $record and content" }
-        return content
+        logger.info { "GET ${request.servletPath}, response ${fat.kfr} and content" }
+        return fat.body()?.toByteArray() ?: byteArrayOf()
     }
 
 
@@ -94,7 +96,8 @@ internal class KfrController(
             .mapValues { it.value.first() }
             .fromHeadersMap(path)
         val content = body ?: byteArrayOf()
-        kfrService.put(path, record, content)
+        val fat = FatKfr(record, content.toByteString())
+        kfrService.put(fat)
         eventPublisher.publishEvent(RepoEvent(this, record))
 
         logger.info { "PUT ${request.servletPath}, request $record and content" }

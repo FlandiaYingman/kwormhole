@@ -1,55 +1,65 @@
 package top.anagke.kwormhole.service
 
-import org.hibernate.engine.jdbc.BlobProxy
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.dao.KfrEntity
-import top.anagke.kwormhole.dao.KfrFileEntity
-import top.anagke.kwormhole.dao.KfrFileRepository
 import top.anagke.kwormhole.dao.KfrRepository
+import java.io.File
+import java.nio.file.Path
+import java.util.concurrent.locks.ReadWriteLock
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.withLock
 
 @Service
 class KfrService(
     private val kfrRepo: KfrRepository,
-    private val contentRepository: KfrFileRepository
+    @Value("\${kwormhole.root}")
+    private val root: String,
 ) {
+
     //TODO: Transaction!
+    private val lock: ReadWriteLock = ReentrantReadWriteLock(true)
 
     fun all(): List<Kfr> {
-        return kfrRepo.findAll().map { it.asKfr() }
+        lock.readLock().withLock {
+            return kfrRepo.findAll().map { it.asKfr() }
+        }
     }
 
     fun head(path: String): Kfr? {
-        return kfrRepo.findById(path).orElseGet { null }?.asKfr()
-    }
-
-    fun get(path: String): Pair<Kfr, ByteArray>? {
-        val record = kfrRepo.findById(path).orElseGet { null }?.asKfr()
-        val content = contentRepository.findById(path).orElseGet { null }?.content?.binaryStream?.use { it.readBytes() }
-        if ((record == null) != (content == null)) {
-            TODO("The state of repos aren't same, could be fixed by enabling transaction")
-        }
-        return if (record == null && content == null) {
-            null
-        } else {
-            record!! to content!!
+        lock.readLock().withLock {
+            return kfrRepo.findById(path).orElseGet { null }?.asKfr()
         }
     }
 
-    fun put(path: String, record: Kfr, content: ByteArray) {
-        if (path != record.path) {
-            TODO("Throw an exception")
+
+    fun get(path: String): FatKfr? {
+        lock.readLock().withLock {
+            val kfr = kfrRepo.findById(path).orElse(null)?.asKfr() ?: return null
+            val fat = FatKfr(kfr, kfr.file)
+            return fat
         }
-        kfrRepo.save(KfrEntity(record))
-        contentRepository.save(KfrFileEntity(path, BlobProxy.generateProxy(content)))
     }
+
+    fun put(fatKfr: FatKfr) {
+        val kfr = fatKfr.kfr
+        val path = fatKfr.kfr.path
+        lock.writeLock().withLock {
+            if (kfr.canReplace(this.head(path))) {
+                kfrRepo.save(KfrEntity(kfr))
+                fatKfr.actualize(kfr.file)
+            }
+        }
+    }
+
+    private val Kfr.file: Path get() = toFile(File(root)).toPath()
+
 
     operator fun contains(path: String): Boolean {
         val recordExistence = kfrRepo.existsById(path)
-        val contentExistence = contentRepository.existsById(path)
-        if (recordExistence != contentExistence)
-            TODO("The state of repos aren't same, could be fixed by enabling transaction")
-        return recordExistence && contentExistence
+        return recordExistence
     }
 
 }
