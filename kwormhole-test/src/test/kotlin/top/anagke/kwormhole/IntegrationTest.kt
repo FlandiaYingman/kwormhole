@@ -9,8 +9,7 @@ import org.junit.jupiter.api.Timeout
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.ConfigurableApplicationContext
-import top.anagke.kio.file.deleteDir
-import top.anagke.kio.file.deleteFile
+import top.anagke.kio.file.promise
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
 import java.util.concurrent.TimeUnit.SECONDS
@@ -21,6 +20,7 @@ class IntegrationTest {
     private var client1: KWormholeClient? = null
     private var client2: KWormholeClient? = null
 
+    private val serverRoot = File("./server_root")
     private val serverDatabase = File("./database-test.mv.db")
 
     private val client1Root = File("./client_1")
@@ -30,14 +30,12 @@ class IntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        serverDatabase.deleteFile()
-        client1Root.deleteDir()
-        client2Root.deleteDir()
-        client1Database.deleteFile()
-        client2Database.deleteFile()
-
-        client1Root.mkdirs()
-        client2Root.mkdirs()
+        serverRoot.promise().directory().new()
+        serverDatabase.promise().notExist()
+        client1Root.promise().directory().new()
+        client2Root.promise().directory().new()
+        client1Database.promise().notExist()
+        client2Database.promise().notExist()
 
         server = launchServer()
         client1 = launchClient(client1Root, client1Database)
@@ -51,17 +49,18 @@ class IntegrationTest {
         client1?.close()
         client2?.close()
 
-        serverDatabase.deleteFile()
-        client1Root.deleteDir()
-        client2Root.deleteDir()
-        client1Database.deleteFile()
-        client2Database.deleteFile()
+        serverRoot.promise().notExist()
+        serverDatabase.promise().notExist()
+        client1Root.promise().notExist()
+        client2Root.promise().notExist()
+        client1Database.promise().notExist()
+        client2Database.promise().notExist()
     }
 
     @Test
     @Timeout(30, unit = SECONDS)
     fun test_create_basic() {
-        test_create(64, 4 * 1024)
+        test_create(16, 4 * 1024)
     }
 
     @Test
