@@ -27,7 +27,7 @@ dependencies {
     // Util: Other Util Libraries
     implementation("com.google.code.gson:gson:2.8.7")
     implementation("io.github.microutils:kotlin-logging:2.0.8")
-    implementation("top.anagke:kio:0.1.0")
+    implementation("top.anagke:kio:1.0.0")
 
 
     // Integration Test: Client
