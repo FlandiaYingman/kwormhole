@@ -66,6 +66,7 @@ class IntegrationTest {
     }
 
     @Test
+    @Timeout(30, unit = SECONDS)
     fun test_create_large() {
         test_create(1, 64.MiB)
     }
@@ -77,9 +78,9 @@ class IntegrationTest {
     }
 
     @Test
-    @Timeout(300, unit = SECONDS)
+    @Timeout(600, unit = SECONDS)
     fun test_create_many_large() {
-        test_create(64, 64.MiB)
+        test_create(16, 64.MiB)
     }
 
 
