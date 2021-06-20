@@ -21,13 +21,14 @@ import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.ThinKfr
 import top.anagke.kwormhole.forEachSlice
+import top.anagke.kwormhole.isSingle
+import top.anagke.kwormhole.merge
 import top.anagke.kwormhole.util.TempFiles
 import top.anagke.kwormhole.util.fromJson
 import top.anagke.kwormhole.util.parseFormDisposition
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -104,9 +105,23 @@ class KfrClient(
      * @return the record object, or `null` if the record doesn't exist
      */
     fun get(path: String): FatKfr? {
+        val first = getThin(path, 0) ?: return null
+        if (first.isSingle()) return first.merge()
+        val temp = TempFiles.allocTempFile()
+        first.merge(temp)
+        for (number in 1 until first.total) {
+            val thin = getThin(path, number)!!
+            thin.merge(temp)
+        }
+        val terminate = getThin(path, first.total)!!
+        return terminate.merge(temp) { TempFiles.freeTempFile(temp) }!!
+    }
+
+    private fun getThin(path: String, number: Int): ThinKfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
+            .addQueryParameter("number", number.toString())
             .build()
         val request = Request.Builder()
             .url(url)
@@ -114,17 +129,7 @@ class KfrClient(
             .build()
         client.newCall(request).execute().use { response ->
             return when {
-                response.isSuccessful -> {
-                    val stream = response.body?.byteStream() ?: InputStream.nullInputStream()
-                    stream.use { input ->
-                        val kfr = fromHttpHeaders(path, response.headers)
-
-                        val temp = TempFiles.allocTempFile(tempDirectory)
-                        temp.outputStream().use { output -> input.copyTo(output) }
-
-                        FatKfr(kfr, temp) { TempFiles.freeTempFile(temp) }
-                    }
-                }
+                response.isSuccessful -> response.body!!.parseForm()
                 response.code == 404 -> null
                 else -> TODO("Throw exception")
             }
@@ -164,7 +169,7 @@ class KfrClient(
             .setType(MultipartBody.FORM)
             .addPart("kfr", Gson().toJson(kfr).toRequestBody("application/json".toMediaType()))
             .addPart("number", Gson().toJson(number).toRequestBody("application/json".toMediaType()))
-            .addPart("count", Gson().toJson(count).toRequestBody("application/json".toMediaType()))
+            .addPart("count", Gson().toJson(total).toRequestBody("application/json".toMediaType()))
             .addPart("range", Gson().toJson(range).toRequestBody("application/json".toMediaType()))
             .addFormDataPart("body", null, body.toRequestBody())
             .build()

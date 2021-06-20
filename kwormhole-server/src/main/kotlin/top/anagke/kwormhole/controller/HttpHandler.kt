@@ -4,12 +4,18 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.util.LinkedMultiValueMap
+import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import top.anagke.kio.MiB
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.Kfr.Companion.HASH_HEADER_NAME
 import top.anagke.kwormhole.Kfr.Companion.SIZE_HEADER_NAME
@@ -19,6 +25,7 @@ import top.anagke.kwormhole.isSingle
 import top.anagke.kwormhole.merge
 import top.anagke.kwormhole.service.KfrService
 import top.anagke.kwormhole.service.ThinKfrService
+import top.anagke.kwormhole.slice
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -66,17 +73,29 @@ internal class KfrController(
         logger.info { "HEAD ${request.servletPath}, response $record" }
     }
 
-    @RequestMapping("/kfr/**", method = [RequestMethod.GET])
+    @RequestMapping(
+        "/kfr/**", method = [RequestMethod.GET], produces =
+        [MediaType.MULTIPART_FORM_DATA_VALUE]
+    )
     fun get(
         request: HttpServletRequest,
-        response: HttpServletResponse
-    ): ByteArray {
+        response: HttpServletResponse,
+        @RequestParam number: Int
+    ): ResponseEntity<MultiValueMap<String, Any>> {
         val path = request.kfrPath()
         val fat = kfrService.get(path) ?: throw KfrNotFoundException(path)
-        fat.kfr.toHttpHeaders().forEach { (name, value) -> response.addHeader(name, value) }
+        fat.use {
+            val thin = fat.slice(8.MiB, number)
+            val form = LinkedMultiValueMap<String, Any>()
+            form.add("kfr", thin.kfr)
+            form.add("number", thin.number)
+            form.add("count", thin.total)
+            form.add("range", thin.range)
+            form.add("body", thin.body)
 
-        logger.info { "GET ${request.servletPath}, response ${fat.kfr} and content" }
-        return fat.body()?.toByteArray() ?: byteArrayOf()
+            logger.info { "GET ${request.servletPath}, response ${fat.kfr} and content" }
+            return ResponseEntity(form, HttpStatus.OK)
+        }
     }
 
 

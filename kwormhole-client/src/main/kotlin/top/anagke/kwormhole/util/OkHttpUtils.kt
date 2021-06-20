@@ -10,7 +10,8 @@ fun parseFormDisposition(string: String): FormDisposition {
         .map { it.trim() }
         .map { it.split('=') }
         .onEach { if (it.size == 1) check(it[0] == "form-data") }
-        .associate { it[0] to it[1] }
+        .filter { it.size != 1 }
+        .associate { it[0] to it[1].trim('"') }
     val name = map["name"]
     val filename = map["filename"]
     return FormDisposition(name!!, filename)

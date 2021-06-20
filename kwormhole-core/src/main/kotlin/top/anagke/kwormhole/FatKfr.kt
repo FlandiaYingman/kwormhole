@@ -8,6 +8,7 @@ import okio.Closeable
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
 import java.io.InputStream
+import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.file.Files
@@ -27,6 +28,7 @@ sealed class FatKfr(val kfr: Kfr) : Closeable {
 
     abstract fun body(): ByteString?
     abstract fun stream(): InputStream?
+    abstract fun part(range: ThinKfr.Range): ByteArray?
     abstract fun actualize(file: Path)
 
 
@@ -90,6 +92,16 @@ internal class FatFileKfr(
         return Files.newInputStream(file, READ)
     }
 
+    override fun part(range: ThinKfr.Range): ByteArray? {
+        return Files.newByteChannel(file, READ).use { ch ->
+            ch.position(range.begin)
+            val buf = ByteBuffer.allocate(range.len().toInt())
+            ch.read(buf)
+            check(buf.position() == range.len().toInt()) { "${buf.position()} != ${range.len().toInt()}" }
+            buf.array()
+        }
+    }
+
     override fun actualize(file: Path) {
         Files.createDirectories(file.parent)
         Files.copy(this.file, file, REPLACE_EXISTING)
@@ -104,7 +116,7 @@ internal class FatBufferKfr(
 
     init {
         val bufferSize = buffer.size.toLong()
-        check(bufferSize == kfr.size)
+        check(bufferSize == kfr.size) { "buffer size $bufferSize != kfr size ${kfr.size}" }
         val fileHash = Hasher.hash(buffer.toByteArray()) //TODO: Performance
         check(fileHash == kfr.hash)
     }
@@ -115,6 +127,10 @@ internal class FatBufferKfr(
 
     override fun stream(): InputStream {
         return buffer.toByteArray().inputStream()
+    }
+
+    override fun part(range: ThinKfr.Range): ByteArray {
+        return buffer.substring(range.begin.toInt(), range.end.toInt()).toByteArray()
     }
 
     override fun actualize(file: Path) {
@@ -140,6 +156,10 @@ internal class FatEmptyKfr(
     }
 
     override fun stream(): InputStream? {
+        return null
+    }
+
+    override fun part(range: ThinKfr.Range): ByteArray? {
         return null
     }
 

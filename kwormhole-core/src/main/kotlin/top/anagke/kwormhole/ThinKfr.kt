@@ -10,12 +10,13 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
 import kotlin.math.ceil
+import kotlin.math.min
 
 /**
  * A [FatKfr] can not transfer through network, because it is too fff...**fat**!
- * However, here's [ThinKfr]. It is thin enough, can easily break through size restrictions on the network.
+ * However, here's [EmptyThinKfr]. It is thin enough, can easily break through size restrictions on the network.
  *
- * [ThinKfr] is usually created by [FatKfr.forEachSlice].
+ * [EmptyThinKfr] is usually created by [FatKfr.forEachSlice].
  *
  * If the thin KFR is transferred through HTTP, here's some conventions: transfer each thin KFR by a single HTTP
  * request or response; use the media type `multipart/form-data`; serialize all field with their name in code into
@@ -24,22 +25,32 @@ import kotlin.math.ceil
  *
  * @property kfr the KFR, which marks the unique slice sequence
  * @property number represents where this thin KFR is in the slice sequence, start by 0
- * @property count represents how many thin KFRs are in the slice sequence
+ * @property total represents how many thin KFRs are in the slice sequence
  * @property range represents where the body is sliced from the original fat KFR's body
  * @property body represents the body of this thin KFR, it is a part from the original fat KFR's body
  */
 data class ThinKfr(
     val kfr: Kfr,
     val number: Int,
-    val count: Int,
+    val total: Int,
     val range: Range,
     val body: ByteArray,
 ) {
 
+    init {
+        check(0 <= range.begin) { "0 <= range.begin <= range.end <= kfr.size: $this" }
+        check(range.begin <= range.end) { "0 <= range.begin <= range.end <= kfr.size: $this" }
+        check(range.end <= kfr.size) { "0 <= range.begin <= range.end <= kfr.size: $this" }
+        check(number <= total) { "number <= total: $this" }
+        check(!(isSingle() && isTermination())) { "single and termination are mutex: $this" }
+    }
+
     data class Range(
         val begin: Long,
         val end: Long
-    )
+    ) {
+        fun len() = end - begin
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -62,41 +73,56 @@ data class ThinKfr(
     }
 
     override fun toString(): String {
-        return "ThinKfr(kfr=$kfr, number=$number, count=$count, range=$range)"
+        return "ThinKfr(kfr=$kfr, number=$number, count=$total, range=$range)"
     }
 
 }
 
 
-internal fun ThinKfr(kfr: Kfr): ThinKfr {
+internal fun EmptyThinKfr(kfr: Kfr): ThinKfr {
     return ThinKfr(kfr, 0, 1, Range(0, kfr.size), byteArrayOf())
 }
 
 
 fun ThinKfr.isSingle(): Boolean {
-    return count == 1
+    return total == 1
 }
 
 fun ThinKfr.isTermination(): Boolean {
-    return number == count
+    return number == total
 }
 
 
 fun FatKfr.forEachSlice(slice: Int, block: (ThinKfr) -> Unit) {
-    if (this.notExists()) {
-        block(ThinKfr(kfr))
+    if (notExists()) {
+        block(EmptyThinKfr(kfr))
         return
     }
-
     var pos = 0L
     var number = 0
     val count = ceil(kfr.size / slice.toDouble()).toInt()
-    this.stream()!!.forEachBlock(slice) { buf, len ->
-        block(ThinKfr(kfr, number, count, Range(pos, pos + len), buf.copyOf(len)))
-        pos += len
+    this.stream()!!.forEachBlock(slice) { buf, bufLen ->
+        block(ThinKfr(kfr, number, count, Range(pos, pos + bufLen), buf.copyOf(bufLen)))
+        pos += bufLen
         number++
     }
-    block(ThinKfr(kfr, number, count, Range(kfr.size, kfr.size), byteArrayOf()))
+    if (kfr.size > slice) {
+        block(ThinKfr(kfr, number, count, Range(kfr.size, kfr.size), byteArrayOf()))
+    }
+}
+
+fun FatKfr.slice(slice: Int, number: Int): ThinKfr {
+    val total = ceil(kfr.size / slice.toDouble()).toInt()
+
+    check(number <= total)
+    if (this.notExists() && number == 0) return EmptyThinKfr(kfr)
+    if (number == total) {
+        return ThinKfr(kfr, number, total, Range(kfr.size, kfr.size), byteArrayOf())
+    }
+    val pos = (number * slice).toLong()
+    val range = Range(pos, min(pos + slice, kfr.size))
+    val part = this.part(range)
+    return ThinKfr(kfr, number, total, range, part!!)
 }
 
 fun ThinKfr.merge(): FatKfr {
