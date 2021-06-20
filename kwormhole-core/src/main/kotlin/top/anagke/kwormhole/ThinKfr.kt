@@ -9,6 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
+import kotlin.math.ceil
 
 /**
  * A [FatKfr] can not transfer through network, because it is too fff...**fat**!
@@ -27,8 +28,7 @@ import java.nio.file.StandardOpenOption.WRITE
  * @property range represents where the body is sliced from the original fat KFR's body
  * @property body represents the body of this thin KFR, it is a part from the original fat KFR's body
  */
-data class ThinKfr
-internal constructor(
+data class ThinKfr(
     val kfr: Kfr,
     val number: Int,
     val count: Int,
@@ -39,22 +39,7 @@ internal constructor(
     data class Range(
         val begin: Long,
         val end: Long
-    ) {
-
-        companion object {
-            fun parse(str: String): Range {
-                val split = str.split("-")
-                val begin = split[0].toLong()
-                val end = split[1].toLong()
-                return Range(begin, end)
-            }
-        }
-
-        override fun toString(): String {
-            return "$begin-$end"
-        }
-
-    }
+    )
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -76,11 +61,15 @@ internal constructor(
         return result
     }
 
+    override fun toString(): String {
+        return "ThinKfr(kfr=$kfr, number=$number, count=$count, range=$range)"
+    }
+
 }
 
 
 internal fun ThinKfr(kfr: Kfr): ThinKfr {
-    return ThinKfr(kfr, 0, 1, Range(kfr.size, kfr.size), byteArrayOf())
+    return ThinKfr(kfr, 0, 1, Range(0, kfr.size), byteArrayOf())
 }
 
 
@@ -101,12 +90,13 @@ fun FatKfr.forEachSlice(slice: Int, block: (ThinKfr) -> Unit) {
 
     var pos = 0L
     var number = 0
-    val count = (kfr.size / slice).toInt() + 1
+    val count = ceil(kfr.size / slice.toDouble()).toInt()
     this.stream()!!.forEachBlock(slice) { buf, len ->
-        block(ThinKfr(kfr, number, count, Range(pos, pos + len), buf))
+        block(ThinKfr(kfr, number, count, Range(pos, pos + len), buf.copyOf(len)))
         pos += len
         number++
     }
+    block(ThinKfr(kfr, number, count, Range(kfr.size, kfr.size), byteArrayOf()))
 }
 
 fun ThinKfr.merge(): FatKfr {
@@ -114,13 +104,14 @@ fun ThinKfr.merge(): FatKfr {
     return FatKfr(kfr, body.toByteString())
 }
 
-fun ThinKfr.merge(file: Path): FatKfr? {
+fun ThinKfr.merge(file: Path, cleanup: () -> Unit = {}): FatKfr? {
     Files.newByteChannel(file, CREATE, WRITE).use { ch ->
         ch.position(range.begin)
         ch.write(ByteBuffer.wrap(body))
 
         // Just for assertion
-        require(ch.position() == range.end)
+        val pos = ch.position()
+        require(pos == range.end) { "$pos != ${range.end}" }
     }
 
     if (isTermination()) {
@@ -130,7 +121,7 @@ fun ThinKfr.merge(file: Path): FatKfr? {
         //TODO: Throw specific exception
         require(size == kfr.size)
         require(hash == kfr.hash)
-        return FatKfr(kfr, file)
+        return FatKfr(kfr, file, cleanup)
     } else {
         return null
     }

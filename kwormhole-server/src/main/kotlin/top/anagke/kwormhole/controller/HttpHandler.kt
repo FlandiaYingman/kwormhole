@@ -1,24 +1,24 @@
 package top.anagke.kwormhole.controller
 
 import mu.KotlinLogging
-import okio.ByteString.Companion.toByteString
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.Kfr.Companion.HASH_HEADER_NAME
 import top.anagke.kwormhole.Kfr.Companion.SIZE_HEADER_NAME
 import top.anagke.kwormhole.Kfr.Companion.TIME_HEADER_NAME
+import top.anagke.kwormhole.ThinKfr
+import top.anagke.kwormhole.isSingle
+import top.anagke.kwormhole.merge
 import top.anagke.kwormhole.service.KfrService
+import top.anagke.kwormhole.service.ThinKfrService
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -47,7 +47,8 @@ class KfrNotFoundException(pathNotFound: String) : Exception("$pathNotFound not 
 
 @RestController
 internal class KfrController(
-    private val kfrService: KfrService
+    private val kfrService: KfrService,
+    private val thinKfrService: ThinKfrService,
 ) {
 
     private val logger = KotlinLogging.logger { }
@@ -84,23 +85,29 @@ internal class KfrController(
 
     @PutMapping("/kfr/**")
     fun put(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        @RequestHeader headers: HttpHeaders,
-        @RequestBody(required = false) body: ByteArray?,
-    ) {
-        val path = request.kfrPath()
-        response.status = (if (path in kfrService) HttpStatus.OK else HttpStatus.CREATED).value()
+        @RequestPart kfr: JsonKfr,
+        @RequestPart number: Int,
+        @RequestPart count: Int,
+        @RequestPart range: JsonRange,
+        @RequestPart body: ByteArray?,
+    ): HttpStatus {
+        val thin = ThinKfr(kfr.toKfr(), number, count, range.toRange(), body ?: byteArrayOf())
 
-        val record = headers
-            .mapValues { it.value.first() }
-            .fromHeadersMap(path)
-        val content = body ?: byteArrayOf()
-        val fat = FatKfr(record, content.toByteString())
-        kfrService.put(fat)
-        eventPublisher.publishEvent(RepoEvent(this, record))
 
-        logger.info { "PUT ${request.servletPath}, request $record and content" }
+        val fat = if (thin.isSingle()) {
+            thin.merge()
+        } else {
+            thinKfrService.merge(thin)
+        }
+        if (fat == null) {
+            return HttpStatus.ACCEPTED
+        } else {
+            kfrService.put(fat)
+            eventPublisher.publishEvent(RepoEvent(this, fat.kfr))
+
+            logger.info { "PUT ${fat.kfr}" }
+            return HttpStatus.OK
+        }
     }
 
 }

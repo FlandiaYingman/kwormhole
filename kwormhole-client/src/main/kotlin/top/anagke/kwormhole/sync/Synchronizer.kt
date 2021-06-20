@@ -44,8 +44,9 @@ class Synchronizer(
         val change = srcModel.changes.take()
         if (dstModel.acceptable(change)) {
             logger.info { "Sync change from $srcModel to $dstModel: '$change'" }
-            val kfrContent = srcModel.get(change.path)!!
-            dstModel.put(kfrContent)
+            srcModel.get(change.path)!!.use { fat ->
+                dstModel.put(fat)
+            }
         }
     }
 

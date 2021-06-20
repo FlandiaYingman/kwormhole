@@ -6,10 +6,17 @@ import java.io.File
 import java.math.BigInteger
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.random.Random
 
 object TempFiles {
+
+    val DEFAULT_TEMP_DIR = Paths.get(System.getProperty("java.io.tmpdir"), "top.anagke.TempFiles")
+
+    private val TEMP_DIRS: MutableList<Path> = mutableListOf()
+
+    private val TEMP_FILES: MutableList<Path> = mutableListOf()
 
     init {
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
@@ -17,12 +24,9 @@ object TempFiles {
                 it.toFile().deleteDir()
             }
         })
+        register(DEFAULT_TEMP_DIR)
     }
 
-
-    private val TEMP_DIRS: MutableList<Path> = mutableListOf()
-
-    private val TEMP_FILES: MutableList<Path> = mutableListOf()
 
     @Synchronized
     fun register(tempDir: Path) {
@@ -47,7 +51,7 @@ object TempFiles {
     }
 
     @Synchronized
-    fun allocTempFile(tempDir: Path): Path {
+    fun allocTempFile(tempDir: Path = DEFAULT_TEMP_DIR): Path {
         check(tempDir.isRegistered())
         val tempFile = tempDir.resolve(Random.nextHexString(32)).toAbsolutePath()
         TEMP_FILES.add(tempFile)

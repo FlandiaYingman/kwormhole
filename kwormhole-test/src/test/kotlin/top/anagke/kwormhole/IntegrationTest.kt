@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Timeout
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.ConfigurableApplicationContext
+import top.anagke.kio.KiB
+import top.anagke.kio.MiB
 import top.anagke.kio.file.promise
 import top.anagke.kwormhole.util.Hasher
 import java.io.File
@@ -60,19 +62,24 @@ class IntegrationTest {
     @Test
     @Timeout(30, unit = SECONDS)
     fun test_create_basic() {
-        test_create(16, 4 * 1024)
+        test_create(1, 4.KiB)
+    }
+
+    @Test
+    fun test_create_large() {
+        test_create(1, 64.MiB)
     }
 
     @Test
     @Timeout(300, unit = SECONDS)
     fun test_create_many() {
-        test_create(256, 4 * 1024)
+        test_create(256, 4.KiB)
     }
 
     @Test
     @Timeout(300, unit = SECONDS)
-    fun test_create_large() {
-        test_create(15, 256 * 1024 * 1024)
+    fun test_create_many_large() {
+        test_create(64, 64.MiB)
     }
 
 
