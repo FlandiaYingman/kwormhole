@@ -81,21 +81,8 @@ class KfrClient(
      * @return the record object, or `null` if the record doesn't exist
      */
     fun head(path: String): Kfr? {
-        val url = newUrlBuilder()
-            .addPathSegment("kfr")
-            .addPathSegments(path.removePrefix("/"))
-            .build()
-        val request = Request.Builder()
-            .url(url)
-            .head()
-            .build()
-        client.newCall(request).execute().use { response ->
-            return when {
-                response.isSuccessful -> fromHttpHeaders(path, response.headers)
-                response.code == 404 -> null
-                else -> TODO("Throw exception")
-            }
-        }
+        val thin = getThin(path, body = false) ?: return null
+        return thin.kfr
     }
 
     /**
@@ -105,22 +92,23 @@ class KfrClient(
      * @return the record object, or `null` if the record doesn't exist
      */
     fun get(path: String): FatKfr? {
-        val first = getThin(path, 0) ?: return null
+        val first = getThin(path, number = 0) ?: return null
         if (first.isSingle()) return first.merge()
         val temp = TempFiles.allocTempFile()
         first.merge(temp)
         for (number in 1 until first.total) {
-            val thin = getThin(path, number)!!
+            val thin = getThin(path, number = number)!!
             thin.merge(temp)
         }
-        val terminate = getThin(path, first.total)!!
+        val terminate = getThin(path, number = first.total)!!
         return terminate.merge(temp) { TempFiles.freeTempFile(temp) }!!
     }
 
-    private fun getThin(path: String, number: Int): ThinKfr? {
+    private fun getThin(path: String, body: Boolean = true, number: Int = 0): ThinKfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
+            .addQueryParameter("body", body.toString())
             .addQueryParameter("number", number.toString())
             .build()
         val request = Request.Builder()
@@ -194,7 +182,7 @@ class KfrClient(
                 }
             }
         }
-        return ThinKfr(kfr!!, number!!, count!!, range!!, body!!)
+        return ThinKfr(kfr!!, number!!, count!!, range!!, body ?: byteArrayOf())
     }
 
 }
