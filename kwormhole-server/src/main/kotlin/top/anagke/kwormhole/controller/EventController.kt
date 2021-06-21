@@ -2,8 +2,6 @@ package top.anagke.kwormhole.controller
 
 import com.google.gson.Gson
 import mu.KotlinLogging
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.ApplicationEvent
 import org.springframework.context.ApplicationListener
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
@@ -14,15 +12,10 @@ import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.service.KfrService
 import java.util.*
 
-
 @Component
-class WSHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
+class EventController(private val kfrService: KfrService) : TextWebSocketHandler(), ApplicationListener<KfrEvent> {
 
     private val logger = KotlinLogging.logger { }
-
-
-    @Autowired
-    private lateinit var kfrService: KfrService
 
     private val sessions: MutableList<WebSocketSession> = Collections.synchronizedList(mutableListOf())
 
@@ -37,7 +30,7 @@ class WSHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
         }
     }
 
-    override fun onApplicationEvent(event: RepoEvent) {
+    override fun onApplicationEvent(event: KfrEvent) {
         synchronized(sessions) {
             sessions.removeIf { it.isOpen.not() }
             sessions.forEach { session ->
@@ -60,8 +53,3 @@ class WSHandler : TextWebSocketHandler(), ApplicationListener<RepoEvent> {
     }
 
 }
-
-class RepoEvent(
-    source: Any,
-    val record: Kfr
-) : ApplicationEvent(source)

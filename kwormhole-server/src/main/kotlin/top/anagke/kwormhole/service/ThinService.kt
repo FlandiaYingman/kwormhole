@@ -10,19 +10,17 @@ import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
-class ThinKfrService {
+class ThinService {
 
-    private val map: MutableMap<Kfr, Path> = ConcurrentHashMap()
+    private val mapTempFile: MutableMap<Kfr, Path> = ConcurrentHashMap()
 
     fun merge(thin: ThinKfr): FatKfr? {
-        val temp = map.getOrPut(thin.kfr) { TempFiles.allocTempFile() }
+        val temp = mapTempFile.getOrPut(thin.kfr) { TempFiles.allocTempFile() }
         val fat = thin.merge(temp) { TempFiles.freeTempFile(temp) }
         if (fat != null) {
-            map.remove(thin.kfr)
-            return fat
-        } else {
-            return null
+            mapTempFile.remove(thin.kfr)
         }
+        return fat
     }
 
 }

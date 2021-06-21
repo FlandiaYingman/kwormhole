@@ -119,4 +119,3 @@ private fun launchServer(): ConfigurableApplicationContext {
 private fun launchClient(root: File, database: File): KWormholeClient {
     return KWormholeClient.open(root.absolutePath, database.absolutePath, "localhost", 8080)
 }
-
