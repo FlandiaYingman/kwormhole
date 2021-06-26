@@ -28,7 +28,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.2")
 
     // Util: Other Util Libraries
-    implementation("top.anagke:kio:1.0.0")
+    implementation("top.anagke:kio:1.1.0")
     implementation("com.google.code.gson:gson:2.8.7")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
 
