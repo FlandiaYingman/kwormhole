@@ -17,17 +17,16 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import top.anagke.kio.MiB
+import top.anagke.kio.util.TempFiles
 import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.ThinKfr
 import top.anagke.kwormhole.forEachSlice
 import top.anagke.kwormhole.isSingle
 import top.anagke.kwormhole.merge
-import top.anagke.kwormhole.util.TempFiles
 import top.anagke.kwormhole.util.fromJson
 import top.anagke.kwormhole.util.parseFormDisposition
 import java.io.Closeable
-import java.io.File
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.concurrent.BlockingQueue
@@ -40,12 +39,6 @@ class KfrClient(
     private val serverHost: String,
     private val serverPort: Int,
 ) {
-
-    private val tempDirectory = File("./kfr_client_temp")
-
-    init {
-        TempFiles.register(tempDirectory)
-    }
 
     private val client = OkHttpClient()
 
@@ -94,14 +87,14 @@ class KfrClient(
     fun get(path: String): FatKfr? {
         val first = getThin(path, number = 0) ?: return null
         if (first.isSingle()) return first.merge()
-        val temp = TempFiles.allocTempFile()
+        val temp = TempFiles.allocLocal()
         first.merge(temp)
         for (number in 1 until first.total) {
             val thin = getThin(path, number = number)!!
             thin.merge(temp)
         }
         val terminate = getThin(path, number = first.total)!!
-        return terminate.merge(temp) { TempFiles.freeTempFile(temp) }!!
+        return terminate.merge(temp) { TempFiles.free(temp) }!!
     }
 
     private fun getThin(path: String, body: Boolean = true, number: Int = 0): ThinKfr? {

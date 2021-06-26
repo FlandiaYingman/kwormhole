@@ -5,8 +5,6 @@ import okhttp3.Headers.Companion.toHeaders
 import top.anagke.kwormhole.FatKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.model.AbstractModel
-import top.anagke.kwormhole.util.TempFiles
-import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -15,17 +13,6 @@ class RemoteModel(
     private val host: String,
     private val port: Int
 ) : AbstractModel() {
-
-    companion object {
-
-        val KFR_TEMP: Path = Path.of("KFR_TEMP")
-
-        init {
-            TempFiles.register(KFR_TEMP)
-        }
-
-    }
-
 
     private val kfrClient: KfrClient = KfrClient(host, port)
 
