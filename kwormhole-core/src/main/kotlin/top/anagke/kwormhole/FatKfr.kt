@@ -55,15 +55,15 @@ internal class FatFileKfr(
     private val cleanup: () -> Unit = {}
 ) : FatKfr(kfr) {
 
-    //TODO: An exception thrown in init block might occur an not-closed channel
-    init {
-        if (kfr.exists()) {
-            val fileSize = Files.size(file)
-            check(fileSize == kfr.size) { "$fileSize == ${kfr.size} failed" }
-            val fileHash = Hasher.hash(file)
-            check(fileHash == kfr.hash) { "$fileHash == ${kfr.hash} failed" }
-        }
-    }
+//    //TODO: An exception thrown in init block might occur an not-closed channel
+//    init {
+//        if (kfr.exists()) {
+//            val fileSize = Files.size(file)
+//            check(fileSize == kfr.size) { "$fileSize == ${kfr.size} failed" }
+//            val fileHash = Hasher.hash(file)
+//            check(fileHash == kfr.hash) { "$fileHash == ${kfr.hash} failed" }
+//        }
+//    }
 
     override fun close() {
         super.close()
