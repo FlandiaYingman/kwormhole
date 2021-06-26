@@ -35,13 +35,13 @@ class KfrController(
     private lateinit var eventPublisher: ApplicationEventPublisher
 
 
-    private fun fillForm(thin: ThinKfr): LinkedMultiValueMap<String, Any> {
+    private fun fillForm(thin: ThinKfr, body: Boolean): LinkedMultiValueMap<String, Any> {
         val form = LinkedMultiValueMap<String, Any>()
         form.add("kfr", thin.kfr)
         form.add("number", thin.number)
         form.add("count", thin.total)
         form.add("range", thin.range)
-        form.add("body", thin.body)
+        if (body) form.add("body", thin.body)
         return form
     }
 
@@ -55,7 +55,7 @@ class KfrController(
         val fat = kfrService.get(path) ?: throw KfrNotFoundException(path)
         fat.use {
             val thin = fat.slice(8.MiB, number)
-            val form = fillForm(thin)
+            val form = fillForm(thin, body = body)
 
             logger.info { "GET KFR '$path': ${fat.kfr}" }
             return ResponseEntity(form, HttpStatus.OK)
