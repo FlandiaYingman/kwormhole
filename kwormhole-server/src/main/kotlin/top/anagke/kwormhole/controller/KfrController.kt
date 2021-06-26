@@ -77,14 +77,16 @@ class KfrController(
         } else {
             thinService.merge(thin)
         }
-        if (fat == null) {
-            return HttpStatus.ACCEPTED
-        } else {
-            kfrService.put(fat)
-            eventPublisher.publishEvent(KfrEvent(this, fat.kfr))
+        fat.use {
+            if (fat == null) {
+                return HttpStatus.ACCEPTED
+            } else {
+                kfrService.put(fat)
+                eventPublisher.publishEvent(KfrEvent(this, fat.kfr))
 
-            logger.info { "PUT KFR '$path': ${fat.kfr}" }
-            return HttpStatus.OK
+                logger.info { "PUT KFR '$path': ${fat.kfr}" }
+                return HttpStatus.OK
+            }
         }
     }
 

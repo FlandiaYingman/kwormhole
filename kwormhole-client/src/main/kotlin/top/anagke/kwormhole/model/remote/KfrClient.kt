@@ -109,10 +109,11 @@ class KfrClient(
             .get()
             .build()
         client.newCall(request).execute().use { response ->
-            return when {
-                response.isSuccessful -> response.body!!.parseForm()
-                response.code == 404 -> null
-                else -> TODO("Throw exception")
+            return when (response.code) {
+                200 -> response.body!!.parseForm()
+                404 -> null
+                //TODO: more specific exception
+                else -> throw IOException("response code ${response.code} is neither 200 nor 404")
             }
         }
     }

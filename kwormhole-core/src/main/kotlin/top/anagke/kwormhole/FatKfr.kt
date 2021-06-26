@@ -9,8 +9,6 @@ import top.anagke.kwormhole.util.Hasher
 import java.io.File
 import java.io.InputStream
 import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
-import java.nio.channels.FileLock
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
@@ -57,29 +55,18 @@ internal class FatFileKfr(
     private val cleanup: () -> Unit = {}
 ) : FatKfr(kfr) {
 
-    private val channel: FileChannel?
-    private val lock: FileLock?
-
     //TODO: An exception thrown in init block might occur an not-closed channel
     init {
         if (kfr.exists()) {
-            channel = FileChannel.open(file, READ)
-            lock = channel.lock(0, Long.MAX_VALUE, true)
             val fileSize = Files.size(file)
-            check(fileSize == kfr.size)
+            check(fileSize == kfr.size) { "$fileSize == ${kfr.size} failed" }
             val fileHash = Hasher.hash(file)
-            check(fileHash == kfr.hash)
-        } else {
-            channel = null
-            lock = null
+            check(fileHash == kfr.hash) { "$fileHash == ${kfr.hash} failed" }
         }
     }
 
     override fun close() {
         super.close()
-        lock?.close()
-        channel?.close()
-
         cleanup.invoke()
     }
 
