@@ -3,7 +3,9 @@ package top.anagke.kwormhole.service
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.IKfr
 import top.anagke.kwormhole.Kfr
+import top.anagke.kwormhole.ThinKfr
 import top.anagke.kwormhole.dao.KfrEntity
 import top.anagke.kwormhole.dao.KfrRepository
 import java.io.File
@@ -15,8 +17,8 @@ import kotlin.concurrent.withLock
 @Service
 class KfrService(
     private val kfrRepo: KfrRepository,
-    @Value("\${kwormhole.root}")
-    private val root: String,
+    private val thinService: ThinService,
+    @Value("\${kwormhole.root}") private val root: String,
 ) {
 
     //TODO: Transaction!
@@ -30,7 +32,8 @@ class KfrService(
 
     fun head(path: String): Kfr? {
         lock.readLock().withLock {
-            return kfrRepo.findById(path).orElseGet { null }?.asKfr()
+            val kfr = kfrRepo.findById(path).orElse(null)?.asKfr()
+            return kfr
         }
     }
 
@@ -43,18 +46,22 @@ class KfrService(
         }
     }
 
-    fun put(fatKfr: FatKfr) {
-        val kfr = fatKfr.kfr
-        val path = fatKfr.kfr.path
+    fun put(thin: ThinKfr): FatKfr? {
         lock.writeLock().withLock {
-            if (kfr.canReplace(this.head(path))) {
-                kfrRepo.save(KfrEntity(kfr))
-                fatKfr.actualize(kfr.file)
+            if (thin.canReplace(head(thin.path))) {
+                val fat = thinService.mergeAlloc(thin)
+                if (fat != null) {
+                    kfrRepo.save(KfrEntity(Kfr(fat)))
+                    fat.actualize(fat.file)
+                    thinService.mergeFree(Kfr(fat))
+                    return fat
+                }
             }
         }
+        return null
     }
 
-    private val Kfr.file: Path get() = toFile(File(root)).toPath()
+    private val IKfr.file: Path get() = toFile(File(root)).toPath()
 
 
     operator fun contains(path: String): Boolean {

@@ -5,11 +5,13 @@ package top.anagke.kwormhole.model.local
 import mu.KotlinLogging
 import top.anagke.kio.file.notExists
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.IKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.parseKfrPath
 import top.anagke.kwormhole.toKfrPath
 import java.io.Closeable
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArrayList
@@ -90,18 +92,19 @@ class KfrService(
         }
     }
 
-    fun put(fatKfr: FatKfr) {
+    fun put(fat: FatKfr) {
         var alt = false
-        val kfr = fatKfr.kfr
-        val path = fatKfr.kfr.path
         lock.writeLock().withLock {
-            if (kfr.canReplace(this.head(path))) {
-                database.put(listOf(kfr))
-                fatKfr.actualize(kfr.file)
+            if (fat.canReplace(head(fat.path))) {
+                database.put(listOf(Kfr(fat)))
+                fat.actualize(fat.file)
                 alt = true
+                if (Files.size(fat.file) == 5532L) {
+                    println("err")
+                }
             }
         }
-        if (alt) callListener(kfr)
+        if (alt) callListener(Kfr(fat))
     }
 
 
@@ -120,7 +123,7 @@ class KfrService(
     }
 
 
-    private val Kfr.file: Path get() = toFile(root).toPath()
+    private val IKfr.file: Path get() = toFile(root).toPath()
 
     override fun close() {
         database.close()

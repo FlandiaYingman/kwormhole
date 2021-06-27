@@ -60,13 +60,13 @@ class IntegrationTest {
     }
 
     @Test
-    @Timeout(30, unit = SECONDS)
+    @Timeout(90, unit = SECONDS)
     fun test_create_basic() {
         test_create(1, 4.KiB)
     }
 
     @Test
-    @Timeout(30, unit = SECONDS)
+    @Timeout(90, unit = SECONDS)
     fun test_create_large() {
         test_create(1, 64.MiB)
     }

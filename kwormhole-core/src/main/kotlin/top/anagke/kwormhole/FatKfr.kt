@@ -4,171 +4,101 @@ package top.anagke.kwormhole
 
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import okio.Closeable
-import top.anagke.kwormhole.util.Hasher
 import java.io.File
-import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-import java.nio.file.StandardOpenOption.READ
-
-sealed class FatKfr(val kfr: Kfr) : Closeable {
-
-    var open: Boolean = true
-        private set
-
-    override fun close() {
-        open = false
-    }
+import java.nio.file.StandardOpenOption.*
 
 
-    abstract fun body(): ByteString?
-    abstract fun stream(): InputStream?
-    abstract fun part(range: ThinKfr.Range): ByteArray?
-    abstract fun actualize(file: Path)
+interface FatKfr : IKfr {
 
+    fun bytes(range: Range = Range(0, size)): ByteString
 
-    val path get() = kfr.path
-
-    fun canReplace(other: Kfr?) = this.kfr.canReplace(other)
-    fun equalsPath(other: Kfr) = this.kfr.equalsPath(other)
-    fun equalsContent(other: Kfr) = this.kfr.equalsContent(other)
-
-    fun canReplace(other: FatKfr?) = this.kfr.canReplace(other?.kfr)
-    fun equalsPath(other: FatKfr) = this.kfr.equalsPath(other.kfr)
-    fun equalsContent(other: FatKfr) = this.kfr.equalsContent(other.kfr)
-
-    fun exists() = this.kfr.exists()
-    fun notExists() = this.kfr.notExists()
-
-
-    fun toFile(root: File) = this.kfr.toFile(root)
-    fun toPath(root: Path) = this.kfr.toPath(root)
+    fun actualize(dest: Path)
 
 }
 
-internal class FatFileKfr(
+private abstract class AbsFatKfr(kfr: Kfr) : FatKfr {
+    override val path: String = kfr.path
+    override val time: Long = kfr.time
+    override val size: Long = kfr.size
+    override val hash: Long = kfr.hash
+}
+
+private class FileFatKfr(
     kfr: Kfr,
     val file: Path,
-    private val cleanup: () -> Unit = {}
-) : FatKfr(kfr) {
+) : AbsFatKfr(kfr) {
 
-//    //TODO: An exception thrown in init block might occur an not-closed channel
-//    init {
-//        if (kfr.exists()) {
-//            val fileSize = Files.size(file)
-//            check(fileSize == kfr.size) { "$fileSize == ${kfr.size} failed" }
-//            val fileHash = Hasher.hash(file)
-//            check(fileHash == kfr.hash) { "$fileHash == ${kfr.hash} failed" }
-//        }
-//    }
-
-    override fun close() {
-        super.close()
-        cleanup.invoke()
-    }
-
-
-    override fun body(): ByteString? {
-        return if (kfr.exists()) file.toFile().readBytes().toByteString() else null
-    }
-
-    override fun stream(): InputStream {
-        return Files.newInputStream(file, READ)
-    }
-
-    override fun part(range: ThinKfr.Range): ByteArray? {
+    override fun bytes(range: Range): ByteString {
+        ensurePresent()
         return Files.newByteChannel(file, READ).use { ch ->
             ch.position(range.begin)
-            val buf = ByteBuffer.allocate(range.len().toInt())
-            ch.read(buf)
-            check(buf.position() == range.len().toInt()) { "${buf.position()} != ${range.len().toInt()}" }
-            buf.array()
+
+            val buf = ByteBuffer.allocateDirect(Math.toIntExact(range.length()))
+            do {
+                val length = ch.read(buf)
+            } while (length != -1 && buf.remaining() != 0)
+
+            check(ch.position() == range.end) {
+                "ch.position() == range.end failed, $this"
+            }
+            check(buf.position() == Math.toIntExact(range.length())) {
+                "buf.position() == Math.toIntExact(range.length()) failed, $this"
+            }
+
+            buf.flip()
+            buf.toByteString()
         }
     }
 
-    override fun actualize(file: Path) {
-        Files.createDirectories(file.parent)
-        Files.copy(this.file, file, REPLACE_EXISTING)
-    }
-
-}
-
-internal class FatBufferKfr(
-    kfr: Kfr,
-    val buffer: ByteString
-) : FatKfr(kfr) {
-
-    init {
-        val bufferSize = buffer.size.toLong()
-        check(bufferSize == kfr.size) { "buffer size $bufferSize != kfr size ${kfr.size}" }
-        val fileHash = Hasher.hash(buffer.toByteArray()) //TODO: Performance
-        check(fileHash == kfr.hash)
-    }
-
-    override fun body(): ByteString {
-        return this.buffer
-    }
-
-    override fun stream(): InputStream {
-        return buffer.toByteArray().inputStream()
-    }
-
-    override fun part(range: ThinKfr.Range): ByteArray {
-        return buffer.substring(range.begin.toInt(), range.end.toInt()).toByteArray()
-    }
-
-    override fun actualize(file: Path) {
-        Files.createDirectories(file.parent)
-        if (Files.notExists(file)) Files.createFile(file)
-        Files.newOutputStream(file).use {
-            this.buffer.write(it)
+    override fun actualize(dest: Path) {
+        if (this.exists()) {
+            Files.createDirectories(dest.parent)
+            Files.copy(file, dest, REPLACE_EXISTING)
+        } else {
+            Files.deleteIfExists(dest)
         }
     }
 
 }
 
-internal class FatEmptyKfr(
+private class BufferFatKfr(
     kfr: Kfr,
-) : FatKfr(kfr) {
+    val buffer: ByteString?,
+) : AbsFatKfr(kfr) {
 
-    init {
-        check(kfr.notExists())
+    override fun bytes(range: Range): ByteString {
+        ensurePresent()
+        return buffer!!.substring(range.begin.toInt(), range.end.toInt())
     }
 
-    override fun body(): ByteString? {
-        return null
-    }
-
-    override fun stream(): InputStream? {
-        return null
-    }
-
-    override fun part(range: ThinKfr.Range): ByteArray? {
-        return null
-    }
-
-    override fun actualize(file: Path) {
-        Files.deleteIfExists(file)
+    override fun actualize(dest: Path) {
+        if (this.exists()) {
+            Files.createDirectories(dest.parent)
+            Files.newOutputStream(dest, CREATE, WRITE).use { buffer!!.write(it) }
+        } else {
+            Files.deleteIfExists(dest)
+        }
     }
 
 }
 
 
-fun FatKfr(kfr: Kfr, file: Path, cleanup: () -> Unit = {}): FatKfr {
-    return FatFileKfr(kfr, file, cleanup)
+fun FatKfr(kfr: Kfr, file: Path): FatKfr {
+    return FileFatKfr(kfr, file)
 }
 
-fun FatKfr(kfr: Kfr, file: File, cleanup: () -> Unit = {}): FatKfr {
-    return FatFileKfr(kfr, file.toPath(), cleanup)
+fun FatKfr(kfr: Kfr, file: File): FatKfr {
+    return FileFatKfr(kfr, file.toPath())
 }
 
 fun FatKfr(kfr: Kfr, buffer: ByteString): FatKfr {
-    return FatBufferKfr(kfr, buffer)
+    return BufferFatKfr(kfr, buffer)
 }
 
-fun EmptyFatKfr(kfr: Kfr): FatKfr {
-    return FatEmptyKfr(kfr)
+fun FatKfr(kfr: Kfr, buffer: ByteArray): FatKfr {
+    return BufferFatKfr(kfr, buffer.toByteString())
 }
