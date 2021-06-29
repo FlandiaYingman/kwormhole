@@ -6,10 +6,10 @@ plugins {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.lz4:lz4-java:1.7.1")
+    implementation(kotlin("stdlib-jdk8"))
 
-    api("com.squareup.okio:okio:3.0.0-alpha.6")
-    api("top.anagke:kio:1.1.0")
+    implementation("org.lz4:lz4-java:1.7.1")
+    implementation("top.anagke:kio:1.1.0")
 }
 
 tasks.test {

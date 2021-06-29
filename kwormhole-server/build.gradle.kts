@@ -16,6 +16,7 @@ dependencies {
 
     // Language: Kotlin Stdlib
     implementation(kotlin("stdlib"))
+    implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
 
     // Spring Boot Framework
