@@ -89,8 +89,15 @@ private class ThinKfrObj(
 
 
     init {
-        require(progress.position <= progress.total) {
-            "progress.numerator <= progress.denominator failed, $this"
+        if (kfr.exists()) {
+            require(body != null)
+            require(range.length() == body!!.size.toLong())
+            require(progress.position <= progress.total)
+        }
+        if (kfr.notExists()) {
+            require(body == null)
+            require(range.begin == 0L && range.end == 0L)
+            require(progress.position == 0 && progress.total == 1)
         }
     }
 
@@ -143,7 +150,7 @@ fun unsafeThinKfr(kfr: Kfr, range: Range, progress: Progress, body: ByteArray): 
 
 fun absentThinKfr(kfr: Kfr): ThinKfr {
     kfr.ensureAbsent()
-    return ThinKfrObj(kfr, Range(0, kfr.size), Progress(0, 1), null)
+    return ThinKfrObj(kfr, Range(0, 0), Progress(0, 1), null)
 }
 
 fun terminateThinKfr(kfr: Kfr, length: Int): ThinKfr {
