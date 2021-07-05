@@ -5,10 +5,12 @@ package top.anagke.kwormhole.model.local
 import mu.KotlinLogging
 import top.anagke.kio.file.notExists
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.newFatKfr
 import top.anagke.kwormhole.IKfr
 import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.parseKfrPath
-import top.anagke.kwormhole.toKfrPath
+import top.anagke.kwormhole.fromFile
+import top.anagke.kwormhole.parsePath
+import top.anagke.kwormhole.toPath
 import java.io.Closeable
 import java.io.File
 import java.nio.file.Files
@@ -40,7 +42,7 @@ class KfrService(
             .toList()
         val databaseFiles = database
             .all()
-            .map { parseKfrPath(root, it.path) }
+            .map { parsePath(root, it.path) }
         sync(diskFiles + databaseFiles)
     }
 
@@ -54,10 +56,10 @@ class KfrService(
         val fileList = sequence
             .onEach { check(it.isFile || it.notExists()) }
         val pathList = sequence
-            .map { toKfrPath(root, it) }
+            .map { toPath(root, it) }
         val result = lock.writeLock().withLock {
             val oldKfrTask = pathList.let { ForkJoinTask.adapt(Callable { database.get(it.toList()) }).fork() }
-            val newKfrTasks = fileList.map { ForkJoinTask.adapt(Callable { Kfr(root, it) }).fork() }.toList()
+            val newKfrTasks = fileList.map { ForkJoinTask.adapt(Callable { fromFile(root, it) }).fork() }.toList()
             val result = oldKfrTask.join()
                 .asSequence()
                 .withIndex()
@@ -87,7 +89,7 @@ class KfrService(
     fun get(path: String): FatKfr? {
         lock.readLock().withLock {
             val kfr = database.get(path) ?: return null
-            val fat = FatKfr(kfr, kfr.file)
+            val fat = newFatKfr(kfr, kfr.file)
             return fat
         }
     }
@@ -97,7 +99,7 @@ class KfrService(
         lock.writeLock().withLock {
             if (fat.canReplace(head(fat.path))) {
                 database.put(listOf(Kfr(fat)))
-                fat.actualize(fat.file)
+                fat.copy(fat.file)
                 alt = true
                 if (Files.size(fat.file) == 5532L) {
                     println("err")

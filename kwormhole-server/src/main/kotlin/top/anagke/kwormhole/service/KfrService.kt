@@ -3,6 +3,7 @@ package top.anagke.kwormhole.service
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import top.anagke.kwormhole.FatKfr
+import top.anagke.kwormhole.newFatKfr
 import top.anagke.kwormhole.IKfr
 import top.anagke.kwormhole.Kfr
 import top.anagke.kwormhole.ThinKfr
@@ -41,7 +42,7 @@ class KfrService(
     fun get(path: String): FatKfr? {
         lock.readLock().withLock {
             val kfr = kfrRepo.findById(path).orElse(null)?.asKfr() ?: return null
-            val fat = FatKfr(kfr, kfr.file)
+            val fat = newFatKfr(kfr, kfr.file)
             return fat
         }
     }
@@ -52,7 +53,7 @@ class KfrService(
                 val fat = thinService.mergeAlloc(thin)
                 if (fat != null) {
                     kfrRepo.save(KfrEntity(Kfr(fat)))
-                    fat.actualize(fat.file)
+                    fat.copy(fat.file)
                     thinService.mergeFree(Kfr(fat))
                     return fat
                 }

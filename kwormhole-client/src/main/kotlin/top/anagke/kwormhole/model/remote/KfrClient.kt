@@ -3,30 +3,13 @@ package top.anagke.kwormhole.model.remote
 import com.google.gson.Gson
 import com.google.gson.JsonParseException
 import com.google.gson.JsonSyntaxException
-import okhttp3.Headers
-import okhttp3.HttpUrl
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
-import okhttp3.MultipartReader
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.ResponseBody
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import okio.ByteString
-import okio.ByteString.Companion.EMPTY
-import okio.ByteString.Companion.toByteString
 import top.anagke.kio.MiB
 import top.anagke.kio.util.TempFiles
-import top.anagke.kwormhole.FatKfr
-import top.anagke.kwormhole.Fraction
-import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.Range
-import top.anagke.kwormhole.ThinKfr
-import top.anagke.kwormhole.forEachSlice
-import top.anagke.kwormhole.merge
+import top.anagke.kwormhole.*
 import top.anagke.kwormhole.util.fromJson
 import top.anagke.kwormhole.util.parseFormDisposition
 import java.io.Closeable
@@ -75,18 +58,19 @@ class KfrClient(
 
     fun get(path: String): FatKfr? {
         val first = getFirst(path) ?: return null
-        if (first.isStandalone()) return first.merge()
 
         val temp = TempFiles.allocLocal()
 
+        if (first.isStandalone()) return first.merge(temp) { TempFiles.free(it) }!!
+
         first.merge(temp)
-        for (number in 1 until first.progress.denominator) {
-            val thin = getThin(path, number = Math.toIntExact(number))!!
+        for (number in 1 until first.progress.total) {
+            val thin = getThin(path, number = number)!!
             thin.merge(temp)
         }
 
-        val terminate = getThin(path, number = Math.toIntExact(first.progress.denominator))!!
-        return terminate.merge(temp)
+        val terminate = getThin(path, number = first.progress.total)!!
+        return terminate.merge(temp) { TempFiles.free(it) }
     }
 
     private fun getFirst(path: String): ThinKfr? {
@@ -114,10 +98,32 @@ class KfrClient(
         }
     }
 
+    private fun ResponseBody.parseForm(): ThinKfr {
+        var kfr: Kfr? = null
+        var range: Range? = null
+        var progress: Progress? = null
+        var body: ByteArray? = null
+        MultipartReader(this).use { reader ->
+            while (true) {
+                val part = reader.nextPart() ?: break
+                val name = parseFormDisposition(part.headers["Content-Disposition"].orEmpty()).name
+                when (name) {
+                    "kfr" -> kfr = Gson().fromJson<Kfr>(part.body.readString(UTF_8))
+                    "range" -> range = Gson().fromJson<Range>(part.body.readString(UTF_8))
+                    "progress" -> progress = Gson().fromJson<Progress>(part.body.readString(UTF_8))
+                    "body" -> body = part.body.readByteArray()
+                }
+            }
+        }
+        return unsafeThinKfr(kfr!!, range!!, progress!!, body ?: byteArrayOf())
+    }
+
 
     fun put(fat: FatKfr) {
-        fat.forEachSlice(8.MiB) { thin ->
-            putThin(thin)
+        fat.slicer(8.MiB).use {
+            it.forEach { thin ->
+                putThin(thin)
+            }
         }
     }
 
@@ -137,7 +143,6 @@ class KfrClient(
         }
     }
 
-
     private fun ThinKfr.fillForm(): MultipartBody {
         fun MultipartBody.Builder.addPart(name: String, body: RequestBody): MultipartBody.Builder {
             return this.addPart(Headers.headersOf("Content-Disposition", "form-data; name=\"$name\""), body)
@@ -147,28 +152,8 @@ class KfrClient(
             .addPart("kfr", Gson().toJson(Kfr(this)).toRequestBody("application/json".toMediaType()))
             .addPart("range", Gson().toJson(range).toRequestBody("application/json".toMediaType()))
             .addPart("progress", Gson().toJson(progress).toRequestBody("application/json".toMediaType()))
-            .addFormDataPart("body", null, body().toRequestBody("application/octet-stream".toMediaType()))
+            .addFormDataPart("body", null, this.move().toRequestBody("application/octet-stream".toMediaType()))
             .build()
-    }
-
-    private fun ResponseBody.parseForm(): ThinKfr {
-        var kfr: Kfr? = null
-        var range: Range? = null
-        var progress: Fraction? = null
-        var body: ByteArray? = null
-        MultipartReader(this).use { reader ->
-            while (true) {
-                val part = reader.nextPart() ?: break
-                val name = parseFormDisposition(part.headers["Content-Disposition"].orEmpty()).name
-                when (name) {
-                    "kfr" -> kfr = Gson().fromJson<Kfr>(part.body.readString(UTF_8))
-                    "range" -> range = Gson().fromJson<Range>(part.body.readString(UTF_8))
-                    "progress" -> progress = Gson().fromJson<Fraction>(part.body.readString(UTF_8))
-                    "body" -> body = part.body.readByteArray()
-                }
-            }
-        }
-        return ThinKfr(kfr!!, range!!, progress!!, body?.toByteString() ?: EMPTY)
     }
 
 }
