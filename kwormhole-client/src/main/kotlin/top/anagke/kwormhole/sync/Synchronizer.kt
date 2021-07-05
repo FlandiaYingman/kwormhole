@@ -35,11 +35,15 @@ class Synchronizer(
     }
 
     private fun loop() {
-        val change = srcModel.changes.take()
-        if (dstModel.acceptable(change)) {
-            logger.info { "Sync change from $srcModel to $dstModel: '$change'" }
-            val srcKfr = srcModel.get(change.path)
-            dstModel.put(srcKfr!!)
+        try {
+            val change = srcModel.changes.take()
+            if (dstModel.acceptable(change)) {
+                logger.info { "Sync change from $srcModel to $dstModel: '$change'" }
+                val srcKfr = srcModel.get(change.path)
+                dstModel.put(srcKfr!!)
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Exception synchronizing" }
         }
     }
 
