@@ -43,7 +43,7 @@ interface IKfr {
      */
     val hash: Long
 
-    fun ensurePathEquals(other: Kfr) = check(this.path == other.path) {
+    fun ensurePathEquals(other: IKfr) = check(this.path == other.path) {
         "this.path == other.path failed, $this, $other"
     }
 
@@ -56,7 +56,7 @@ interface IKfr {
      * @throws IllegalArgumentException if paths of this and that KFR
      *     aren't same
      */
-    fun canReplace(that: Kfr?): Boolean {
+    fun canReplace(that: IKfr?): Boolean {
         if (that == null) return true
 
         ensurePathEquals(that)
@@ -64,7 +64,7 @@ interface IKfr {
     }
 
 
-    fun equalsContent(other: Kfr): Boolean {
+    fun equalsContent(other: IKfr): Boolean {
         ensurePathEquals(other)
         return this.size == other.size && this.hash == other.hash
     }
@@ -88,11 +88,11 @@ interface IKfr {
 
 
     fun toFile(root: File): File {
-        return parseKfrPath(root, path)
+        return parsePath(root, path)
     }
 
     fun toPath(root: Path): Path {
-        return parseKfrPath(root.toFile(), path).toPath()
+        return parsePath(root.toFile(), path).toPath()
     }
 
 }
@@ -103,32 +103,29 @@ data class Kfr(
     override val size: Long,
     override val hash: Long,
 ) : IKfr {
+
     constructor(iKfr: IKfr) : this(iKfr.path, iKfr.time, iKfr.size, iKfr.hash)
 
     override fun toString(): String {
-        val formattedTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(time), systemDefault()).format(ISO_DATE_TIME)
-        val formattedHash = "0x${hash.toULong().toString(16).padStart(ULong.SIZE_BITS / 4, '0')}"
-        val formattedSize = "${size}"
-        return "Kfr(path=$path, time=$formattedTime, size=$formattedSize, hash=$formattedHash)"
+        return "Kfr(path=$path, time=${formatTime()}, size=${formatSize()}, hash=${formatHash()})"
+    }
+
+    private fun formatTime(): String {
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(time), systemDefault()).format(ISO_DATE_TIME)
+    }
+
+    private fun formatSize(): String {
+        return "$size"
+    }
+
+    private fun formatHash(): String {
+        return "0x${hash.toULong().toString(16).padStart(ULong.SIZE_BITS / 4, padChar = '0')}"
     }
 
 }
 
-fun Kfr(root: File, file: File): Kfr {
-    val path = toKfrPath(root, file)
-    val time = utcEpochMillis
-    val size = if (file.exists()) file.length() else -1
-    val hash = if (file.exists()) Hasher.hash(file) else 0
-    return Kfr(path, time, size, hash)
-}
 
-fun Kfr(root: File, path: String): Kfr {
-    val file = parseKfrPath(root, path)
-    return Kfr(root, file)
-}
-
-
-fun toKfrPath(root: File, file: File): String {
+fun toPath(root: File, file: File): String {
     val rootPath = root.toPath().toAbsolutePath()
     val filePath = file.toPath().toAbsolutePath()
     check(filePath.startsWith(rootPath))
@@ -139,10 +136,34 @@ fun toKfrPath(root: File, file: File): String {
     return "/$relative"
 }
 
-fun parseKfrPath(root: File, path: String): File {
+fun parsePath(root: File, path: String): File {
     val fsSeparator = FileSystems.getDefault().separator
     val relativePath = path
         .removePrefix("/")
         .replace("/", fsSeparator)
     return root.resolve(relativePath)
+}
+
+fun fromFile(root: File, file: File): Kfr {
+    val path = toPath(root, file)
+    val time = utcEpochMillis
+    val size = if (file.exists()) file.length() else -1
+    val hash = if (file.exists()) Hasher.hash(file) else 0
+    return Kfr(path, time, size, hash)
+}
+
+fun fromFile(root: File, path: String): Kfr {
+    val file = parsePath(root, path)
+    return fromFile(root, file)
+}
+
+
+@JvmName("asPojoOrNull")
+fun IKfr?.asPojo(): Kfr? {
+    return if (this is Kfr) this else this?.let { Kfr(it) }
+}
+
+@JvmName("asPojo")
+fun IKfr.asPojo(): Kfr {
+    return if (this is Kfr) this else Kfr(this)
 }
