@@ -115,7 +115,26 @@ data class Kfr(
     }
 
     private fun formatSize(): String {
-        return "$size"
+        val kibSize = 1024
+        val mibSize = kibSize * 1024
+        val gibSize = mibSize * 1024
+
+        var size = this.size
+        val gib = size / gibSize
+        size %= gibSize
+        val mib = size / mibSize
+        size %= mibSize
+        val kib = size / kibSize
+        size %= kibSize
+        val b = size
+
+        val sb = StringBuilder()
+        if (gib != 0L) sb.append(gib).append("G")
+        if (mib != 0L) sb.append(mib).append("M")
+        if (kib != 0L) sb.append(kib).append("K")
+        if (b != 0L) sb.append(b).append("B")
+        if (sb.isEmpty()) sb.append("0B")
+        return sb.toString()
     }
 
     private fun formatHash(): String {
