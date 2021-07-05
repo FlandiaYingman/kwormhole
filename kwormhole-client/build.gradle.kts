@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    application
 
     id("com.github.ben-manes.versions") version "0.39.0"
 }
@@ -43,6 +44,10 @@ dependencies {
 
     // Test Server Implementation: OkHttp Mock Web Server
     testImplementation("com.squareup.okhttp3:mockwebserver:5.0.0-alpha.2")
+}
+
+application {
+    mainClass.set("top.anagke.kwormhole.MainKt")
 }
 
 tasks.test {
