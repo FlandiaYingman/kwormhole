@@ -19,8 +19,8 @@ Server:
 
 ## Features
 
-- Synchronize files between the server and client! 
+- Synchronize files between the server and client!
 
-## Bug fixes 
+## Bug fixes
 
 - We haven't found any bug yet...
