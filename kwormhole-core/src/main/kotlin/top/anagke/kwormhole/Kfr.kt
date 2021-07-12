@@ -78,7 +78,7 @@ interface IKfr {
         return size == -1L && hash == 0L
     }
 
-    fun ensurePresent() {
+    fun requirePresent() {
         check(this.exists()) { "this.exists() failed, $this" }
     }
 

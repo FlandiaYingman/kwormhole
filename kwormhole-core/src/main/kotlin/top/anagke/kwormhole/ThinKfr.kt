@@ -5,6 +5,9 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 
 data class Range(
     val begin: Long,
@@ -12,11 +15,11 @@ data class Range(
 ) {
 
     init {
-        require(0 <= begin) { "0 <= begin failed, $this" }
-        require(begin <= end) { "begin <= end failed, $this" }
+        require((begin - end) >= Integer.MIN_VALUE)
+        require((end - begin) <= Integer.MAX_VALUE)
     }
 
-    fun length(): Long = end - begin
+    fun length(): Int = Math.toIntExact(end - begin)
 
     override fun toString(): String {
         return "[$begin, $end)"
@@ -26,15 +29,33 @@ data class Range(
 
 data class Progress(
     val position: Int,
-    val total: Int,
+    val amount: Int,
 ) {
 
     init {
-        require(total != 0) { "denominator != 0 failed, $this" }
+        require(amount != 0) { "denominator != 0 failed, $this" }
     }
 
     override fun toString(): String {
-        return "$position/$total"
+        return "$position/$amount"
+    }
+
+
+    fun next(): Progress {
+        return Progress(position + 1, amount)
+    }
+
+    fun position(newPosition: Int): Progress {
+        return Progress(newPosition, amount)
+    }
+
+
+    fun isSingle(): Boolean {
+        return amount == 1
+    }
+
+    fun isTerminal(): Boolean {
+        return position == amount
     }
 
 }
@@ -42,18 +63,35 @@ data class Progress(
 
 /**
  * A [FatKfr] can not transfer through network, because it is too fat!
+ * However, here is [ThinKfr]. Firstly, the [FatKfr] can be split into
+ * multiple [ThinKfr] parts, which formed a thin KFR sequence. Secondly,
+ * the sequence is transferred through network, whatever in sequence or
+ * in parallel. Finally, the received sequence can be merged back into
+ * the original [FatKfr].
  *
- * However, here's [ThinKfr]. A [FatKfr] can be split into multiple
- * [ThinKfr] parts. The parts can be transferred through network in
- * sequence or parallel. Then the parts can be merged into the original
- * [FatKfr].
+ * If the length of the sequence is `1`, the sequence is "single".
+ * Every non-single sequence should end with a additional "terminal"
+ * thin KFR. For the terminal thin KFR: the `range` should be `[n, n)`,
+ * which `n` is the size of the KFR; the `progress` should be `m/m`,
+ * which `m` is the amount of the sequence; the `body` should not exist.
+ * However, a single sequence can still end with a terminal thin KFR.
+ *
+ * If the [FatKfr] is present, the sequence can be either single or not.
+ * For each [ThinKfr] in the sequence: the `range` should not be out of
+ * the range `[0, s)`, which `s` is the size of the KFR; the `progress`
+ * is determined by the given slice size and the size of the KFR; the
+ * `body` should exist, unless the thin KFR is "terminal"; if the `body`
+ * exists, the length of the `body` should equal to the length of the
+ * `range`
+ *
+ * If the [FatKfr] is absent, the sequence is always single. For the
+ * single [ThinKfr] in the sequence: the `range` should be `[-1, -1)`;
+ * the `progress` should be `0/1`; the `body` should not exist.
  */
 interface ThinKfr : IKfr {
 
-    /** Represents which part is this [unsafeThinKfr] from the [newFatKfr]. */
     val range: Range
 
-    /** Represents the start and the end this [unsafeThinKfr] is. */
     val progress: Progress
 
 
@@ -62,13 +100,20 @@ interface ThinKfr : IKfr {
     fun move(): ByteArray
 
 
-    fun isStandalone(): Boolean {
-        return progress.total == 1
+    fun isSingle(): Boolean {
+        return progress.amount == 1
     }
 
-    fun isTermination(): Boolean {
-        return progress.total == progress.position || isStandalone()
+    fun isTerminal(): Boolean {
+        return range.begin == this.size && range.end == this.size && progress.position == progress.amount
     }
+
+
+    fun hasBody(): Boolean {
+        return this.exists() && this.isTerminal().not()
+    }
+
+    fun requireHasBody() = require(hasBody()) { "$this has no body" }
 
 }
 
@@ -80,38 +125,43 @@ private class ThinKfrObj(
 ) : ThinKfr {
 
     override val path: String = kfr.path
-
     override val time: Long = kfr.time
-
     override val size: Long = kfr.size
-
     override val hash: Long = kfr.hash
 
-
     init {
-        if (kfr.exists()) {
-            require(body != null)
-            require(range.length() == body!!.size.toLong())
-            require(progress.position <= progress.total)
+        if (this.exists()) {
+            require(range.begin >= 0 && range.end >= 0)
+            require(progress.position >= 0 && progress.amount >= 1)
+            if (this.isTerminal()) {
+                require(body == null)
+            } else {
+                require(body != null)
+                require(body!!.size == range.length())
+            }
         }
-        if (kfr.notExists()) {
+        if (this.notExists()) {
+            require(range.begin == -1L && range.end == -1L)
             require(body == null)
-            require(range.begin == 0L && range.end == 0L)
-            require(progress.position == 0 && progress.total == 1)
+            if (this.isTerminal()) {
+                require(progress.position == 1 && progress.amount == 1)
+            } else {
+                require(progress.position == 0 && progress.amount == 1)
+            }
         }
     }
 
 
     override fun copy(): ByteArray {
-        ensurePresent()
-        ensureAvailable()
+        requireHasBody()
+        requireAvailable()
         val body = this.body!!
         return body.copyOf()
     }
 
     override fun move(): ByteArray {
-        ensurePresent()
-        ensureAvailable()
+        requireHasBody()
+        requireAvailable()
         val body = this.body!!
         invalidate()
         return body
@@ -125,12 +175,12 @@ private class ThinKfrObj(
 
     private var available = true
 
-    private fun ensureAvailable() {
+    private fun requireAvailable() {
         require(available) { "available failed, $this" }
     }
 
     private fun invalidate() {
-        ensureAvailable()
+        requireAvailable()
         available = false
         body = null
     }
@@ -138,60 +188,51 @@ private class ThinKfrObj(
 }
 
 
-fun safeThinKfr(kfr: Kfr, range: Range, progress: Progress, body: ByteArray): ThinKfr {
-    kfr.ensurePresent()
-    return ThinKfrObj(kfr, range, progress, body.copyOf())
+fun newThinKfr(kfr: Kfr, range: Range, progress: Progress, body: ByteArray?): ThinKfr {
+    if (progress.isTerminal()) {
+        return terminalThinKfr(kfr, progress.amount)
+    }
+    if (kfr.exists()) {
+        return presentThinKfr(kfr, range, progress, body ?: byteArrayOf())
+    } else {
+        return absentThinKfr(kfr)
+    }
 }
 
-fun unsafeThinKfr(kfr: Kfr, range: Range, progress: Progress, body: ByteArray): ThinKfr {
-    kfr.ensurePresent()
+fun presentThinKfr(kfr: Kfr, range: Range, progress: Progress, body: ByteArray): ThinKfr {
+    kfr.requirePresent()
     return ThinKfrObj(kfr, range, progress, body)
 }
 
 fun absentThinKfr(kfr: Kfr): ThinKfr {
     kfr.ensureAbsent()
-    return ThinKfrObj(kfr, Range(0, 0), Progress(0, 1), null)
+    return ThinKfrObj(kfr, Range(-1, -1), Progress(0, 1), null)
 }
 
-fun terminateThinKfr(kfr: Kfr, length: Int): ThinKfr {
-    kfr.ensurePresent()
-    return ThinKfrObj(kfr, Range(kfr.size, kfr.size), Progress(length, length), byteArrayOf())
+fun terminalThinKfr(kfr: Kfr, amount: Int): ThinKfr {
+    return ThinKfrObj(kfr, Range(kfr.size, kfr.size), Progress(amount, amount), null)
 }
 
 
-fun ThinKfr.merge(file: Path): FatKfr? {
-    val body = this.move()
-
-    Files.newByteChannel(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE).use { ch ->
-        ch.position(range.begin)
-
-        val buf = ByteBuffer.wrap(body)
-        do {
-            val length = ch.write(buf)
-        } while (length != -1 && buf.hasRemaining())
-
-        check(ch.position() == range.end) {
-            "ch.position() == range.end failed, $this"
-        }
-        check(buf.position() == Math.toIntExact(range.length())) {
-            "buf.position() == Math.toIntExact(range.length()) failed, $this"
-        }
+fun ThinKfr.merge(file: Path, cleanup: Cleanup = {}): FatKfr? {
+    return if (this.exists()) {
+        mergeExists(file, cleanup)
+    } else {
+        mergeNotExists(file, cleanup)
     }
+}
 
-    return if (isTermination()) {
+private fun ThinKfr.mergeExists(file: Path, cleanup: Cleanup): FatKfr? {
+    if (this.isTerminal()) {
         val size = Files.size(file)
         val hash = Hasher.hash(file)
 
-        require(size == this.size)
-        require(hash == this.hash)
+        check(size == this.size) { "the merged fat KFR is broken: $size != ${this.size}" }
+        check(hash == this.hash) { "the merged fat KFR is broken：$hash != ${this.hash}" }
 
-        newFatKfr(Kfr(this), file)
-    } else {
-        null
+        return newFatKfr(Kfr(this), file, cleanup)
     }
-}
 
-fun ThinKfr.merge(file: Path, cleanup: (Path) -> Unit): FatKfr? {
     val body = this.move()
 
     Files.newByteChannel(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE).use { ch ->
@@ -202,24 +243,132 @@ fun ThinKfr.merge(file: Path, cleanup: (Path) -> Unit): FatKfr? {
             val length = ch.write(buf)
         } while (length != -1 && buf.remaining() != 0)
 
-        check(ch.position() == range.end) {
-            "ch.position() == range.end failed, $this"
-        }
-        check(buf.position() == Math.toIntExact(range.length())) {
-            "buf.position() == Math.toIntExact(range.length()) failed, $this"
-        }
+        check(ch.position() == range.end) { "${ch.position()} != ${range.end} failed" }
+        check(buf.position() == range.length()) { "${buf.position()} != ${range.length()}" }
     }
 
-    return if (isTermination()) {
+    if (this.isSingle()) {
         val size = Files.size(file)
         val hash = Hasher.hash(file)
 
-        //TODO: Throw specific exception
-        require(size == this.size)
-        require(hash == this.hash)
+        check(size == this.size) { "the merged fat KFR is broken: $size != ${this.size}" }
+        check(hash == this.hash) { "the merged fat KFR is broken：$hash != ${this.hash}" }
 
-        newFatKfr(Kfr(this), file, cleanup)
+        return newFatKfr(Kfr(this), file, cleanup)
     } else {
-        null
+        return null
     }
+}
+
+private fun ThinKfr.mergeNotExists(file: Path, cleanup: Cleanup): FatKfr {
+    Files.deleteIfExists(file)
+
+    return newFatKfr(this.asPojo(), file, cleanup)
+}
+
+
+private fun IKfr.sliceProgress(position: Int, sliceSize: Int): Progress {
+    val amount = if (this.exists()) this.sliceAmount(sliceSize) else 1
+    return Progress(position, amount)
+}
+
+private fun IKfr.sliceAmount(sliceSize: Int): Int {
+    if (this.exists()) {
+        return max(ceil(size.toDouble() / sliceSize.toDouble()).toInt(), 1)
+    } else {
+        return 1
+    }
+}
+
+private fun IKfr.sliceRange(progress: Progress, sliceSize: Int): Range {
+    if (this.exists()) {
+        val begin: Long = 1L * progress.position * sliceSize
+        val end: Long = min(this.size, begin + sliceSize)
+        return Range(begin, end)
+    } else {
+        return Range(-1, -1)
+    }
+}
+
+fun FatKfr.slice(position: Int, sliceSize: Int): ThinKfr {
+    if (this.exists()) {
+        val progress = sliceProgress(position, sliceSize)
+        if (progress.isTerminal()) {
+            return sliceTerminal(sliceSize)
+        }
+        val range = this.sliceRange(progress, sliceSize)
+        val bytes = this.bytes(range)
+
+        return presentThinKfr(this.asPojo(), range, progress, bytes)
+    } else {
+        return absentThinKfr(this.asPojo())
+    }
+}
+
+fun FatKfr.sliceTerminal(sliceSize: Int): ThinKfr {
+    return terminalThinKfr(this.asPojo(), this.sliceAmount(sliceSize))
+}
+
+fun FatKfr.sliceIter(sliceSize: Int): SliceIter {
+    return SliceIter(this, sliceSize)
+}
+
+class SliceIter(
+    val fat: FatKfr,
+    val sliceSize: Int,
+) : Iterator<ThinKfr>, AutoCloseable {
+
+    private var progress: Progress = fat.sliceProgress(-1, sliceSize)
+
+    private var channel = (if (fat.exists()) fat.channel() else null)
+
+
+    private var terminated = false
+
+    override fun hasNext(): Boolean {
+        return !terminated
+    }
+
+    override fun next(): ThinKfr {
+        check(hasNext())
+        progress = progress.next()
+
+        return if (fat.exists()) {
+            if (progress.isTerminal()) {
+                terminated = true
+                return nextTerminal()
+            }
+            if (progress.isSingle()) {
+                terminated = true
+                return nextSlice()
+            }
+            return nextSlice()
+        } else {
+            terminated = true
+            absentThinKfr(fat.asPojo())
+        }
+    }
+
+    private fun nextSlice(): ThinKfr {
+        val channel = this.channel!!
+        val range = fat.sliceRange(progress, sliceSize)
+
+        val buffer = ByteBuffer.allocate(range.length())
+        channel.position(range.begin)
+        do {
+            val read = channel.read(buffer)
+        } while (buffer.hasRemaining() && read != -1)
+
+        return presentThinKfr(fat.asPojo(), range, progress, buffer.array())
+    }
+
+    private fun nextTerminal(): ThinKfr {
+        return terminalThinKfr(fat.asPojo(), progress.amount)
+    }
+
+
+    override fun close() {
+        channel?.close()
+    }
+
 }

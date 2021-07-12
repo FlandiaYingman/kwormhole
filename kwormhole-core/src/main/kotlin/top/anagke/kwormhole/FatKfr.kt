@@ -14,8 +14,6 @@ import java.nio.file.StandardOpenOption.READ
 import kotlin.io.path.exists
 import kotlin.io.path.notExists
 import kotlin.io.path.writeBytes
-import kotlin.math.ceil
-import kotlin.math.min
 
 /**
  * [FatKfr] is a [IKfr] which has an immutable body based on filesystem.
@@ -81,11 +79,11 @@ private class FileFatKfr(
 
     override fun bytes(range: Range): ByteArray {
         checkOpen()
-        ensurePresent()
+        requirePresent()
         return Files.newByteChannel(file!!, READ).use { ch ->
             ch.position(range.begin)
 
-            val buf = ByteBuffer.allocateDirect(Math.toIntExact(range.length()))
+            val buf = ByteBuffer.allocate(range.length())
             do {
                 val length = ch.read(buf)
             } while (length != -1 && buf.remaining() != 0)
@@ -93,7 +91,7 @@ private class FileFatKfr(
             check(ch.position() == range.end) {
                 "ch.position() == range.end failed, $this"
             }
-            check(buf.position() == Math.toIntExact(range.length())) {
+            check(buf.position() == range.length()) {
                 "buf.position() == Math.toIntExact(range.length()) failed, $this"
             }
 
@@ -104,7 +102,7 @@ private class FileFatKfr(
 
     override fun channel(): FileChannel {
         checkOpen()
-        ensurePresent()
+        requirePresent()
         return FileChannel.open(file, READ)
     }
 
@@ -202,91 +200,4 @@ fun tempFatKfr(kfr: Kfr, bytes: ByteArray?): FatKfr {
         require(bytes == null)
         newFatKfr(kfr)
     }
-}
-
-
-class Slicer(
-    val fat: FatKfr,
-    val sliceSize: Int,
-) : Iterator<ThinKfr>, AutoCloseable {
-
-    var position: Int = 0
-
-    val length: Int = run {
-        //If the fat KFR doesn't exist, it still should have at least 1 slice.
-        if (fat.notExists()) {
-            1
-        } else {
-            ceil(fat.size.toDouble() / sliceSize.toDouble()).toInt()
-        }
-    }
-
-
-    fun isStandalone(): Boolean {
-        return length == 1
-    }
-
-    fun isTerminate(): Boolean {
-        return length == position || isStandalone()
-    }
-
-
-    private val lazyChannel: Lazy<SeekableByteChannel?> = lazy { if (fat.exists()) fat.channel() else null }
-
-    private val channel by lazyChannel
-
-
-    override fun hasNext(): Boolean {
-        //If it is standalone, has next when 0/1, has no next when 1/1
-        if (isStandalone()) position < length
-        //If it is not standalone, has next when n/n, has no next when n+1/n
-        return position <= length
-    }
-
-    override fun next(): ThinKfr {
-        check(hasNext())
-        val thin = when {
-            isStandalone() -> nextSlice()
-            isTerminate() -> nextTerminate()
-            else -> nextSlice()
-        }
-        position++
-        return thin
-    }
-
-    private fun nextSlice(): ThinKfr {
-        val channel = this.channel!!
-
-        val bodyPos = min(1L * position * sliceSize, fat.size)
-        val bodyLen = min(sliceSize, fat.size.toInt())
-
-        val buffer = ByteBuffer.allocate(bodyLen)
-        channel.position(bodyPos)
-        do {
-            val bytes = channel.read(buffer)
-        } while (bytes != -1 && buffer.hasRemaining())
-
-        return unsafeThinKfr(
-            fat.asPojo(),
-            Range(bodyPos, min(bodyPos + bodyLen, fat.size)),
-            Progress(position, length),
-            buffer.array()
-        )
-    }
-
-    private fun nextTerminate(): ThinKfr {
-        return terminateThinKfr(fat.asPojo(), length)
-    }
-
-
-    override fun close() {
-        if (this.lazyChannel.isInitialized()) {
-            this.channel?.close()
-        }
-    }
-
-}
-
-fun FatKfr.slicer(sliceSize: Int): Slicer {
-    return Slicer(this, sliceSize)
 }
