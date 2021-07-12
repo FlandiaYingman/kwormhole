@@ -43,7 +43,8 @@ class Synchronizer(
                 dstModel.put(srcKfr!!)
             }
         } catch (e: Exception) {
-            logger.warn(e) { "Exception synchronizing" }
+            if (e is InterruptedException) throw e
+            logger.warn(e) { "Error on synchronizing" }
         }
     }
 

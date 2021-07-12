@@ -52,37 +52,33 @@ class KfrClient(
 
 
     fun head(path: String): Kfr? {
-        val thin = getThin(path, body = false) ?: return null
+        val thin = getTerminal(path) ?: return null
         return Kfr(thin)
     }
 
     fun get(path: String): FatKfr? {
-        val first = getFirst(path) ?: return null
+        val first = getThin(path, 0) ?: return null
 
         val temp = TempFiles.allocLocal()
-
-        if (first.isStandalone()) return first.merge(temp) { TempFiles.free(it) }!!
+        if (first.isSingle()) {
+            return first.merge(temp) { TempFiles.free(it) }!!
+        }
 
         first.merge(temp)
-        for (number in 1 until first.progress.total) {
-            val thin = getThin(path, number = number)!!
+        for (number in (1 until first.progress.amount)) {
+            val thin = getThin(path, position = number)!!
             thin.merge(temp)
         }
 
-        val terminate = getThin(path, number = first.progress.total)!!
-        return terminate.merge(temp) { TempFiles.free(it) }
+        val terminal = getThin(path, position = first.progress.amount)!!
+        return terminal.merge(temp) { TempFiles.free(it) }!!
     }
 
-    private fun getFirst(path: String): ThinKfr? {
-        return getThin(path, number = 0)
-    }
-
-    private fun getThin(path: String, body: Boolean = true, number: Int = 0): ThinKfr? {
+    private fun getThin(path: String, position: Int): ThinKfr? {
         val url = newUrlBuilder()
             .addPathSegment("kfr")
             .addPathSegments(path.removePrefix("/"))
-            .addQueryParameter("body", body.toString())
-            .addQueryParameter("number", number.toString())
+            .addQueryParameter("position", "$position")
             .build()
         val request = Request.Builder()
             .url(url)
@@ -98,29 +94,28 @@ class KfrClient(
         }
     }
 
-    private fun ResponseBody.parseForm(): ThinKfr {
-        var kfr: Kfr? = null
-        var range: Range? = null
-        var progress: Progress? = null
-        var body: ByteArray? = null
-        MultipartReader(this).use { reader ->
-            while (true) {
-                val part = reader.nextPart() ?: break
-                val name = parseFormDisposition(part.headers["Content-Disposition"].orEmpty()).name
-                when (name) {
-                    "kfr" -> kfr = Gson().fromJson<Kfr>(part.body.readString(UTF_8))
-                    "range" -> range = Gson().fromJson<Range>(part.body.readString(UTF_8))
-                    "progress" -> progress = Gson().fromJson<Progress>(part.body.readString(UTF_8))
-                    "body" -> body = part.body.readByteArray()
-                }
+    private fun getTerminal(path: String): ThinKfr? {
+        val url = newUrlBuilder()
+            .addPathSegment("kfr_t")
+            .addPathSegments(path.removePrefix("/"))
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+        client.newCall(request).execute().use { response ->
+            return when (response.code) {
+                200 -> response.body!!.parseForm()
+                404 -> null
+                //TODO: more specific exception
+                else -> throw IOException("response code ${response.code} is neither 200 nor 404")
             }
         }
-        return unsafeThinKfr(kfr!!, range!!, progress!!, body ?: byteArrayOf())
     }
 
 
     fun put(fat: FatKfr) {
-        fat.slicer(8.MiB).use {
+        fat.sliceIter(8.MiB).use {
             it.forEach { thin ->
                 putThin(thin)
             }
@@ -143,6 +138,27 @@ class KfrClient(
         }
     }
 
+
+    private fun ResponseBody.parseForm(): ThinKfr {
+        var kfr: Kfr? = null
+        var range: Range? = null
+        var progress: Progress? = null
+        var body: ByteArray? = null
+        MultipartReader(this).use { reader ->
+            while (true) {
+                val part = reader.nextPart() ?: break
+                val name = parseFormDisposition(part.headers["Content-Disposition"].orEmpty()).name
+                when (name) {
+                    "kfr" -> kfr = Gson().fromJson<Kfr>(part.body.readString(UTF_8))
+                    "range" -> range = Gson().fromJson<Range>(part.body.readString(UTF_8))
+                    "progress" -> progress = Gson().fromJson<Progress>(part.body.readString(UTF_8))
+                    "body" -> body = part.body.readByteArray()
+                }
+            }
+        }
+        return newThinKfr(kfr!!, range!!, progress!!, body ?: byteArrayOf())
+    }
+
     private fun ThinKfr.fillForm(): MultipartBody {
         fun MultipartBody.Builder.addPart(name: String, body: RequestBody): MultipartBody.Builder {
             return this.addPart(Headers.headersOf("Content-Disposition", "form-data; name=\"$name\""), body)
@@ -152,7 +168,13 @@ class KfrClient(
             .addPart("kfr", Gson().toJson(Kfr(this)).toRequestBody("application/json".toMediaType()))
             .addPart("range", Gson().toJson(range).toRequestBody("application/json".toMediaType()))
             .addPart("progress", Gson().toJson(progress).toRequestBody("application/json".toMediaType()))
-            .addFormDataPart("body", null, this.move().toRequestBody("application/octet-stream".toMediaType()))
+            .apply {
+                if (hasBody()) addFormDataPart(
+                    "body",
+                    null,
+                    move().toRequestBody("application/octet-stream".toMediaType())
+                )
+            }
             .build()
     }
 

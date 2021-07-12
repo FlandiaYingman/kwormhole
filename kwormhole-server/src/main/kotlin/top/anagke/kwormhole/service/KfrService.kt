@@ -2,11 +2,7 @@ package top.anagke.kwormhole.service
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import top.anagke.kwormhole.FatKfr
-import top.anagke.kwormhole.newFatKfr
-import top.anagke.kwormhole.IKfr
-import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.ThinKfr
+import top.anagke.kwormhole.*
 import top.anagke.kwormhole.dao.KfrEntity
 import top.anagke.kwormhole.dao.KfrRepository
 import java.io.File

@@ -4,16 +4,9 @@ package top.anagke.kwormhole.model.local
 
 import mu.KotlinLogging
 import top.anagke.kio.file.notExists
-import top.anagke.kwormhole.FatKfr
-import top.anagke.kwormhole.newFatKfr
-import top.anagke.kwormhole.IKfr
-import top.anagke.kwormhole.Kfr
-import top.anagke.kwormhole.fromFile
-import top.anagke.kwormhole.parsePath
-import top.anagke.kwormhole.toPath
+import top.anagke.kwormhole.*
 import java.io.Closeable
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.CopyOnWriteArrayList
@@ -49,7 +42,7 @@ class KfrService(
     /**
      * Synchronizes given files with file system and database.
      */
-    fun sync(files: List<File> = emptyList()) {
+    fun sync(files: List<File>) {
         val sequence = files
             .asSequence()
             .distinct()
@@ -101,9 +94,6 @@ class KfrService(
                 database.put(listOf(Kfr(fat)))
                 fat.copy(fat.file)
                 alt = true
-                if (Files.size(fat.file) == 5532L) {
-                    println("err")
-                }
             }
         }
         if (alt) callListener(Kfr(fat))
