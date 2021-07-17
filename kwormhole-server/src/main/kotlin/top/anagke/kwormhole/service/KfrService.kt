@@ -48,9 +48,9 @@ class KfrService(
             if (thin.canReplace(head(thin.path))) {
                 val fat = thinService.mergeAlloc(thin)
                 if (fat != null) {
-                    kfrRepo.save(KfrEntity(Kfr(fat)))
+                    kfrRepo.save(KfrEntity(fat.asPojo()))
                     fat.copy(fat.file)
-                    thinService.mergeFree(Kfr(fat))
+                    thinService.mergeFree(fat)
                     return fat
                 }
             }
