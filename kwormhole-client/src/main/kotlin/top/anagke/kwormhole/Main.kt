@@ -1,45 +1,50 @@
 package top.anagke.kwormhole
 
 import com.xenomachina.argparser.ArgParser
+import com.xenomachina.argparser.default
+import com.xenomachina.argparser.mainBody
+import java.net.InetAddress
+import java.nio.file.Path
 
-fun main(args: Array<String>) {
-    val parsedArgs = ArgParser(args).parseInto(::Args)
-    val root = parsedArgs.root
-    val database = parsedArgs.database
-    val serverHost = parsedArgs.serverHost
-    val serverPort = parsedArgs.serverPort
+fun main(args: Array<String>): Unit = mainBody {
+    ArgParser(args)
+        .parseInto(::Args)
+        .run {
+            val root = root
+            val database = database
 
-    KWormholeClient.open(root, database, serverHost, serverPort)
+            val serverHost = host
+            val serverPort = port
+
+            KWormholeClient.open(root, database, serverHost, serverPort)
+        }
 }
 
 private class Args(parser: ArgParser) {
 
-    val root by parser.storing(
-        "-r", "--root",
-        help = "The root directory of KWormhole Client."
-    )
-
-    val database by parser.storing(
+    val database: Path by parser.storing(
         "-d", "--database",
-        help = "The database location of KWormhole Client."
+        help = "sync database"
+    ) { Path.of(this) }
+        .default(Path.of("./kw_client.db"))
+
+    val host by parser.storing(
+        "-H", "--host",
+        help = "server's host"
     )
+        .default("localhost")
+        .addValidator { InetAddress.getByName(value) }
 
-    private val server by parser.storing(
-        "-s", "--server",
-        help = "The address (address:port) of KWormhole Server"
-    )
+    val port: Int by parser.storing(
+        "-P", "--port",
+        help = "server's port"
+    ) { toInt() }
+        .default(8080)
+        .addValidator { check(value in 1 until 65535) { "invalid port $value" } }
 
-    val serverHost by lazy {
-        server.split(":")[0]
-    }
-
-    val serverPort by lazy {
-        server.split(":")[1].toInt()
-    }
-
-
-    override fun toString(): String {
-        return "Args(root='$root', database='$database', serverHost='$serverHost', serverPort=$serverPort)"
-    }
+    val root: Path by parser.positional(
+        "ROOT",
+        help = "sync root"
+    ) { Path.of(this) }
 
 }

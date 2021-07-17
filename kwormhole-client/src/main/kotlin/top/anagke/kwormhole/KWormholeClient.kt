@@ -6,20 +6,20 @@ import top.anagke.kwormhole.model.local.LocalModel
 import top.anagke.kwormhole.model.remote.RemoteModel
 import top.anagke.kwormhole.sync.Synchronizer
 import java.io.Closeable
-import java.io.File
+import java.nio.file.Path
 
 class KWormholeClient
 private constructor(
-    root: String,
-    database: String,
+    root: Path,
+    database: Path,
     serverHost: String,
     serverPort: Int,
 ) : Closeable {
 
     companion object {
         fun open(
-            root: String,
-            database: String,
+            root: Path,
+            database: Path,
             serverHost: String,
             serverPort: Int,
         ): KWormholeClient {
@@ -32,7 +32,7 @@ private constructor(
         }
     }
 
-    private val localModel: LocalModel = LocalModel(KfrService(File(root), KfrDatabase(File(database))))
+    private val localModel: LocalModel = LocalModel(KfrService(root.toFile(), KfrDatabase(database.toFile())))
     private val remoteModel: RemoteModel = RemoteModel(serverHost, serverPort)
 
     private var uploader: Synchronizer? = null
