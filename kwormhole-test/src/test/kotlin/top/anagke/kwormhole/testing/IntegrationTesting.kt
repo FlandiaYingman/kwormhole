@@ -24,11 +24,11 @@ object IntegrationTesting {
     }
 
     fun launchClient1(): KWormholeClient {
-        return KWormholeClient.open(client1Root.absolutePath, client1Database.absolutePath, "localhost", 8080)
+        return KWormholeClient.open(client1Root.toPath(), client1Database.toPath(), "localhost", 8080)
     }
 
     fun launchClient2(): KWormholeClient {
-        return KWormholeClient.open(client2Root.absolutePath, client2Database.absolutePath, "localhost", 8080)
+        return KWormholeClient.open(client2Root.toPath(), client2Database.toPath(), "localhost", 8080)
     }
 
 
