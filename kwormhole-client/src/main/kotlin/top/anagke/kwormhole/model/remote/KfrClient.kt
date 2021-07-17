@@ -27,7 +27,6 @@ class KfrClient(
     private val client = OkHttpClient.Builder()
         .readTimeout(30, SECONDS)
         .writeTimeout(30, SECONDS)
-        .callTimeout(30, SECONDS)
         .build()
 
     private fun newUrlBuilder(): HttpUrl.Builder {
