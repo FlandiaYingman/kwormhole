@@ -169,7 +169,7 @@ private class ThinKfrObj(
 
 
     override fun toString(): String {
-        return "ThinKfr(kfr=${Kfr(this)}, range=$range, progress=$progress, body=$body)"
+        return "ThinKfr(${this.asPojo()}, range=$range, progress=$progress)"
     }
 
 
