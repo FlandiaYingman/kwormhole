@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import top.anagke.kio.file.createDir
 import top.anagke.kio.file.deleteDir
 import top.anagke.kio.file.deleteFile
+import top.anagke.kwormhole.MockKfr
 import top.anagke.kwormhole.asPojo
 import top.anagke.kwormhole.test.TEST_DIR
 import java.io.File
@@ -52,7 +53,7 @@ internal class KfrServiceTest {
                 val actualFatKfr = kfrService.get(mockFatKfr.path)
                 assertNotNull(actualFatKfr); actualFatKfr!!
                 assertTrue(mockFatKfr.equalsContent(actualFatKfr))
-                assertEquals(mockFatKfr.bytes(), actualFatKfr.bytes())
+                assertArrayEquals(mockFatKfr.bytes(), actualFatKfr.bytes())
             }
         }
     }
@@ -69,7 +70,7 @@ internal class KfrServiceTest {
                 val actualFatKfr = kfrService.get(mockFatKfr.path)
                 assertNotNull(actualFatKfr); actualFatKfr!!
                 assertEquals(mockFatKfr.asPojo(), actualFatKfr.asPojo())
-                assertEquals(mockFatKfr.bytes(), actualFatKfr.bytes())
+                assertArrayEquals(mockFatKfr.bytes(), actualFatKfr.bytes())
             }
         }
     }
