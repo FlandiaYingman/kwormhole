@@ -23,7 +23,7 @@ class LocalModel(val kfrService: KfrService) : AbstractModel() {
     }
 
     override fun poll() {
-        val poll = monitor.take()
+        val poll = monitor.poll()
         sync(poll)
     }
 

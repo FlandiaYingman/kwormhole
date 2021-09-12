@@ -32,7 +32,7 @@ dependencies {
     implementation("top.anagke:kio:1.1.0")
     implementation("com.google.code.gson:gson:2.8.7")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
-
+    implementation("net.contentobjects.jnotify:jnotify:0.94")
 
     // Test Framework: JUnit
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
@@ -52,4 +52,5 @@ application {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("java.library.path", projectDir.resolve("lib"))
 }
